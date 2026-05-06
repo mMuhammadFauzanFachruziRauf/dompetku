@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Sitemap (opsional, isi kalau sudah deploy)
+# Sitemap: https://dompetku.vercel.app/sitemap.xml
