@@ -3,8 +3,9 @@ import { useTransaction } from "../contexts/TransactionContext";
 import { formatRupiah } from "../utils/helpers";
 
 export default function SettingsModal({ isOpen, onClose }) {
-  const { income, updateIncome, shortcuts, updateShortcuts } = useTransaction();
+  const { currentMonthSalaryInfo, selectedDate, updateCurrentMonthSalary, shortcuts, updateShortcuts } = useTransaction();
   const [inputIncome, setInputIncome] = useState("");
+  const [salaryNote, setSalaryNote] = useState("");
   const [localShortcuts, setLocalShortcuts] = useState([]);
   const [newShortcut, setNewShortcut] = useState("");
   const [loading, setLoading] = useState(false);
@@ -13,13 +14,14 @@ export default function SettingsModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (isOpen) {
-      setInputIncome(income.toString());
+      setInputIncome(currentMonthSalaryInfo.amount.toString());
+      setSalaryNote(currentMonthSalaryInfo.note);
       setLocalShortcuts([...(shortcuts || [])]);
       setError("");
       setSuccess(false);
       setNewShortcut("");
     }
-  }, [isOpen, income, shortcuts]);
+  }, [isOpen, currentMonthSalaryInfo, shortcuts]);
 
   if (!isOpen) return null;
 
@@ -35,7 +37,7 @@ export default function SettingsModal({ isOpen, onClose }) {
     }
 
     setLoading(true);
-    const { error: err1 } = await updateIncome(numericVal);
+    const { error: err1 } = await updateCurrentMonthSalary(numericVal, salaryNote);
     const { error: err2 } = await updateShortcuts(localShortcuts);
     setLoading(false);
 
@@ -66,6 +68,8 @@ export default function SettingsModal({ isOpen, onClose }) {
     setInputIncome(val);
   };
 
+  const monthName = selectedDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
       <div className="bg-surface-container-high border border-outline-variant/30 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl relative">
@@ -84,10 +88,10 @@ export default function SettingsModal({ isOpen, onClose }) {
         <form onSubmit={handleSave} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-semibold text-on-surface mb-1.5">
-              Penghasilan Bulanan
+              Gaji & Catatan <span className="capitalize">{monthName}</span>
             </label>
             <p className="text-xs text-on-surface-variant mb-3">
-              Nominal ini akan digunakan untuk menghitung sisa budget dan persentase pengeluaran 50/30/20.
+              Nominal dan catatan ini khusus untuk bulan yang sedang aktif di Month Selector.
             </p>
             
             <div className="relative group">
@@ -103,6 +107,13 @@ export default function SettingsModal({ isOpen, onClose }) {
                 required
               />
             </div>
+            <textarea
+              value={salaryNote}
+              onChange={e => setSalaryNote(e.target.value)}
+              placeholder="Catatan Gaji, misalnya: Potongan telat 100k"
+              rows={3}
+              className="mt-3 w-full bg-surface-container border border-outline-variant/30 rounded-xl px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all resize-none"
+            />
             {error && <p className="text-xs text-error mt-2">{error}</p>}
             {success && <p className="text-xs text-emerald-400 mt-2">Pengaturan berhasil diperbarui!</p>}
           </div>

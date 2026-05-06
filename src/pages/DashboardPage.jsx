@@ -3,15 +3,17 @@ import { useTransaction } from "../contexts/TransactionContext";
 import { formatRupiah, formatDate, getMeta } from "../utils/helpers";
 import { useState } from "react";
 
-function OnboardingBanner({ updateIncome }) {
+function OnboardingBanner({ selectedDate, updateCurrentMonthSalary }) {
   const [val, setVal] = useState("");
+  const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
+  const monthName = selectedDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
 
   const handleSave = async (isZero = false) => {
     const finalVal = isZero ? 0 : val;
     if (!isZero && (!val || val < 0)) return;
     setLoading(true);
-    await updateIncome(finalVal, true);
+    await updateCurrentMonthSalary(finalVal, note, true);
     setLoading(false);
   };
 
@@ -30,6 +32,14 @@ function OnboardingBanner({ updateIncome }) {
         </p>
         
         <div className="w-full mt-6 space-y-4 pt-4 border-t border-outline-variant/20">
+          <div className="text-left">
+            <label className="block text-sm font-semibold text-on-surface mb-1.5 capitalize">
+              Gaji & Catatan {monthName}
+            </label>
+            <p className="text-xs text-on-surface-variant mb-3">
+              Nominal ini khusus untuk bulan yang sedang dipilih.
+            </p>
+          </div>
           <div className="relative">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">
               payments
@@ -42,6 +52,13 @@ function OnboardingBanner({ updateIncome }) {
               className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl pl-11 pr-4 py-4 text-on-surface text-base font-bold focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all placeholder:text-on-surface-variant/40 placeholder:font-normal"
             />
           </div>
+          <textarea
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="Catatan Gaji, misalnya: Potongan telat 100k"
+            rows={3}
+            className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl px-4 py-3.5 text-on-surface text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all placeholder:text-on-surface-variant/40 resize-none"
+          />
           <button
             onClick={() => handleSave()}
             disabled={!val || val < 0 || loading}
@@ -186,7 +203,7 @@ function BudgetRings({ byCategory, income, categories }) {
 
 export default function DashboardPage({ setTab }) {
   const { user } = useAuth();
-  const { transactions, categories, loading, income, hasOnboarded, totalSpent, remaining, pct, byCategory, updateIncome } = useTransaction();
+  const { transactions, categories, loading, income, hasOnboarded, totalSpent, remaining, pct, byCategory, selectedDate, updateCurrentMonthSalary } = useTransaction();
 
   const name = user?.user_metadata?.full_name?.split(" ")[0] || "Kamu";
   const now  = new Date();
@@ -197,7 +214,7 @@ export default function DashboardPage({ setTab }) {
   if (!loading && !hasOnboarded) {
     return (
       <div className="px-4 md:px-8 pt-10 pb-6 max-w-[800px] mx-auto">
-        <OnboardingBanner updateIncome={updateIncome} />
+        <OnboardingBanner selectedDate={selectedDate} updateCurrentMonthSalary={updateCurrentMonthSalary} />
       </div>
     );
   }

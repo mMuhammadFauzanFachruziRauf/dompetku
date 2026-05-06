@@ -1,10 +1,22 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "./AuthContext";
 
 const TransactionContext = createContext(null);
 
 const DEFAULT_INCOME = 0;
+const DEFAULT_SALARY_INFO = { amount: DEFAULT_INCOME, note: "" };
+
+const getMonthKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+};
+
+const normalizeSalaryInfo = (info) => ({
+  amount: Number(info?.amount) || 0,
+  note: typeof info?.note === "string" ? info.note : "",
+});
 
 const DEFAULT_CATEGORIES = [
   { name: "Makan", type: "Needs", keywords: "makan,minum,jajan,kopi,nasgor,bakso,warteg,nasi,soto,ayam,mie,burger,pizza", icon: "restaurant", color: "text-orange-400" },
@@ -27,7 +39,7 @@ export function TransactionProvider({ children }) {
   const isInjecting = useRef(false);
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [income, setIncome] = useState(DEFAULT_INCOME);
+  const [monthlySalaries, setMonthlySalaries] = useState({});
   const [hasOnboarded, setHasOnboarded] = useState(false);
   const [shortcuts, setShortcuts] = useState([]);
   const [categoryBudgets, setCategoryBudgets] = useState({});
@@ -61,13 +73,11 @@ export function TransactionProvider({ children }) {
     if (!user) return;
     const { data } = await supabase
       .from("profiles")
-      .select("monthly_income, has_onboarded, quick_shortcuts, category_budgets")
+      .select("monthly_income, monthly_salaries, has_onboarded, quick_shortcuts, category_budgets")
       .eq("id", user.id)
       .single();
     if (data) {
-      if (data.monthly_income !== undefined && data.monthly_income !== null) {
-        setIncome(data.monthly_income);
-      }
+      setMonthlySalaries(data.monthly_salaries || {});
       setHasOnboarded(data.has_onboarded || false);
       if (data.quick_shortcuts) {
         setShortcuts(data.quick_shortcuts);
@@ -161,12 +171,31 @@ export function TransactionProvider({ children }) {
   };
 
   // ── Update penghasilan ───────────────────────────────────────────────────
-  const updateIncome = async (newIncome, setOnboarded = false) => {
-    if (!user) return { error: "Belum login" };
-    const numericIncome = Number(newIncome);
-    if (isNaN(numericIncome)) return { error: "Nominal tidak valid" };
+  const selectedMonthKey = useMemo(() => getMonthKey(selectedDate), [selectedDate]);
+  const currentMonthSalaryInfo = useMemo(
+    () => normalizeSalaryInfo(monthlySalaries[selectedMonthKey] || DEFAULT_SALARY_INFO),
+    [monthlySalaries, selectedMonthKey]
+  );
+  const income = currentMonthSalaryInfo.amount;
 
-    const payload = { id: user.id, monthly_income: numericIncome };
+  const updateCurrentMonthSalary = async (newAmount, newNote = "", setOnboarded = false) => {
+    if (!user) return { error: "Belum login" };
+    const numericAmount = Number(newAmount);
+    if (isNaN(numericAmount) || numericAmount < 0) return { error: "Nominal tidak valid" };
+
+    const nextMonthlySalaries = {
+      ...(monthlySalaries || {}),
+      [selectedMonthKey]: {
+        amount: numericAmount,
+        note: typeof newNote === "string" ? newNote : "",
+      },
+    };
+
+    const payload = {
+      id: user.id,
+      monthly_salaries: nextMonthlySalaries,
+      monthly_income: numericAmount,
+    };
     if (setOnboarded) payload.has_onboarded = true;
 
     const { error: err } = await supabase
@@ -174,10 +203,13 @@ export function TransactionProvider({ children }) {
       .upsert(payload, { onConflict: 'id' });
 
     if (err) return { error: err.message };
-    setIncome(numericIncome);
+    setMonthlySalaries(nextMonthlySalaries);
     if (setOnboarded) setHasOnboarded(true);
     return { success: true };
   };
+
+  const updateIncome = (newIncome, setOnboarded = false) =>
+    updateCurrentMonthSalary(newIncome, currentMonthSalaryInfo.note, setOnboarded);
 
   // ── Update Shortcuts ─────────────────────────────────────────────────────
   const updateShortcuts = async (newShortcuts) => {
@@ -285,6 +317,8 @@ export function TransactionProvider({ children }) {
     loading,
     error,
     income,
+    monthlySalaries,
+    currentMonthSalaryInfo,
     hasOnboarded,
     shortcuts,
     categoryBudgets,
@@ -300,6 +334,7 @@ export function TransactionProvider({ children }) {
     updateCategory,
     deleteCategory,
     updateIncome,
+    updateCurrentMonthSalary,
     updateShortcuts,
     updateCategoryBudgets,
     getBudgetProgress,
