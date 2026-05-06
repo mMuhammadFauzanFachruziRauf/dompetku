@@ -36,3 +36,5 @@ dist/
 # File Sistem/Editor
 .vscode/
 .DS_Store
+
+cloudbuild.yaml

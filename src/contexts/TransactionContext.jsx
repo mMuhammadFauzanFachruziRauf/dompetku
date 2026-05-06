@@ -19,6 +19,9 @@ const normalizeSalaryInfo = (info) => ({
 });
 
 const DEFAULT_CATEGORIES = [
+  // Default income categories
+  { name: "Cash", type: "Income", keywords: "cash,tunai", icon: "account_balance_wallet", color: "text-emerald-400" },
+  { name: "E-Wallet", type: "Income", keywords: "gopay,dana,ovo,shopeepay,bca", icon: "credit_card", color: "text-cyan-400" },
   { name: "Makan", type: "Needs", keywords: "makan,minum,jajan,kopi,nasgor,bakso,warteg,nasi,soto,ayam,mie,burger,pizza", icon: "restaurant", color: "text-orange-400" },
   { name: "Kendaraan", type: "Needs", keywords: "gojek,grab,bensin,parkir,motor,ojek,bbm", icon: "directions_car", color: "text-blue-400" },
   { name: "Belanja", type: "Wants", keywords: "shopee,tokopedia,baju,sepatu,beli,lazada", icon: "shopping_bag", color: "text-purple-400" },

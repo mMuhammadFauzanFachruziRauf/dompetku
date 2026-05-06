@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTransaction } from "../contexts/TransactionContext";
 import { formatRupiah } from "../utils/helpers";
+import Icon from "./ui/Icon";
 
 export default function SettingsModal({ isOpen, onClose }) {
   const { currentMonthSalaryInfo, selectedDate, updateCurrentMonthSalary, shortcuts, updateShortcuts } = useTransaction();
@@ -80,7 +81,7 @@ export default function SettingsModal({ isOpen, onClose }) {
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest transition-colors text-on-surface-variant hover:text-on-surface"
           >
-            <span className="material-symbols-outlined text-[20px]">close</span>
+            <Icon name="close" sizeClass="text-[20px]" />
           </button>
         </div>
 
@@ -156,7 +157,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                       onClick={() => handleRemoveShortcut(s)}
                       className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-error/20 hover:text-error transition-colors text-on-surface-variant"
                     >
-                      <span className="material-symbols-outlined text-[12px]">close</span>
+                      <Icon name="close" sizeClass="text-[12px]" />
                     </button>
                   </div>
                 ))

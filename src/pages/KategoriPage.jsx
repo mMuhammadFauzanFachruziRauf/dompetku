@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useTransaction } from "../contexts/TransactionContext";
 import IconPicker from "../components/ui/IconPicker";
+import Icon from "../components/ui/Icon";
 
 export default function KategoriPage({ setTab }) {
   const { categories, addCategory, updateCategory, deleteCategory } = useTransaction();
-  
+  const [viewMode, setViewMode] = useState('expense'); // 'expense' or 'income'
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
@@ -31,7 +33,7 @@ export default function KategoriPage({ setTab }) {
       setEditingId(null);
       setFormData({
         name: "",
-        type: "Needs",
+        type: viewMode === 'income' ? 'Income' : 'Needs',
         keywords: "",
         icon: "restaurant",
         color: "text-emerald-400"
@@ -86,23 +88,24 @@ export default function KategoriPage({ setTab }) {
     }
   };
 
-  // Group categories by type
+  // Group categories by type (include Income)
   const grouped = categories.reduce((acc, cat) => {
     if (!acc[cat.type]) acc[cat.type] = [];
     acc[cat.type].push(cat);
     return acc;
-  }, { Needs: [], Wants: [], Savings: [] });
+  }, { Needs: [], Wants: [], Savings: [], Income: [] });
 
   const TYPE_LABELS = {
     Needs: "🏠 Kebutuhan (Needs)",
     Wants: "🎯 Keinginan (Wants)",
-    Savings: "💰 Tabungan (Savings)"
+    Savings: "💰 Tabungan (Savings)",
+    Income: "💸 Pemasukan (Income)"
   };
 
   return (
     <div className="px-4 md:px-8 pt-4 md:pt-6 pb-6 max-w-[900px] mx-auto space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between">
         <div>
           <h2 className="text-xl font-bold text-on-surface">Kelola Kategori</h2>
           <p className="text-sm text-on-surface-variant mt-0.5">Sesuaikan ikon, warna, dan kata kunci smart input</p>
@@ -111,30 +114,73 @@ export default function KategoriPage({ setTab }) {
           onClick={() => handleOpenModal()}
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-slate-900 text-sm font-bold hover:bg-emerald-400 transition-all active:scale-[0.98]"
         >
-          <span className="material-symbols-outlined text-[18px]">add</span>
+          <Icon name="add" sizeClass="text-[18px]" />
           <span className="hidden md:inline">Kategori Baru</span>
         </button>
       </div>
 
       {/* Category List */}
       <div className="space-y-6">
-        {["Needs", "Wants", "Savings"].map(type => (
-          <div key={type} className="glass-card p-6">
-            <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4">
-              {TYPE_LABELS[type]}
-            </h3>
-            
-            {grouped[type].length === 0 ? (
+        {/* Tabs to switch between Expense and Income category management */}
+        <div className="flex gap-2 mb-4">
+          <button onClick={() => setViewMode('expense')} className={`py-2 px-3 rounded-lg text-sm font-bold ${viewMode === 'expense' ? 'bg-surface-container-high text-on-surface' : 'bg-surface-dim text-on-surface-variant'}`}>Expense Categories</button>
+          <button onClick={() => setViewMode('income')} className={`py-2 px-3 rounded-lg text-sm font-bold ${viewMode === 'income' ? 'bg-emerald-500 text-slate-900' : 'bg-surface-dim text-on-surface-variant'}`}>Income Categories</button>
+        </div>
+
+        {viewMode === 'expense' ? (
+          ["Needs", "Wants", "Savings"].map(type => (
+            <div key={type} className="glass-card p-6">
+              <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4">
+                {TYPE_LABELS[type]}
+              </h3>
+              {grouped[type].length === 0 ? (
+                <p className="text-xs text-on-surface-variant/50 italic">Belum ada kategori</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {grouped[type].map(cat => {
+                    const bgClass = cat.color.replace("text-", "bg-") + "/10";
+                    return (
+                      <div key={cat.id} className="flex items-center justify-between p-3.5 rounded-xl bg-surface-dim border border-outline-variant/30 hover:border-outline-variant/60 transition-colors group">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${bgClass}`}>
+                            <Icon name={cat.icon} className={`${cat.color}`} sizeClass="text-[20px]" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-on-surface truncate">{cat.name}</p>
+                            <p className="text-[10px] text-on-surface-variant truncate opacity-70 mt-0.5">
+                              {cat.keywords ? cat.keywords.split(",").join(", ") : "Tidak ada keyword"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => handleOpenModal(cat)} className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors">
+                            <Icon name="edit" sizeClass="text-[18px]" />
+                          </button>
+                          <button onClick={() => handleDelete(cat.id)} className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error/10 transition-colors">
+                            <Icon name="delete" sizeClass="text-[18px]" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="glass-card p-6">
+            <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4">{TYPE_LABELS.Income}</h3>
+            {grouped.Income.length === 0 ? (
               <p className="text-xs text-on-surface-variant/50 italic">Belum ada kategori</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {grouped[type].map(cat => {
+                {grouped.Income.map(cat => {
                   const bgClass = cat.color.replace("text-", "bg-") + "/10";
                   return (
                     <div key={cat.id} className="flex items-center justify-between p-3.5 rounded-xl bg-surface-dim border border-outline-variant/30 hover:border-outline-variant/60 transition-colors group">
                       <div className="flex items-center gap-3 overflow-hidden">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${bgClass}`}>
-                          <span className={`material-symbols-outlined text-[20px] ${cat.color}`}>{cat.icon}</span>
+                          <Icon name={cat.icon} className={`${cat.color}`} sizeClass="text-[20px]" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-on-surface truncate">{cat.name}</p>
@@ -143,13 +189,12 @@ export default function KategoriPage({ setTab }) {
                           </p>
                         </div>
                       </div>
-                      
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => handleOpenModal(cat)} className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors">
-                          <span className="material-symbols-outlined text-[18px]">edit</span>
+                          <Icon name="edit" sizeClass="text-[18px]" />
                         </button>
                         <button onClick={() => handleDelete(cat.id)} className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error/10 transition-colors">
-                          <span className="material-symbols-outlined text-[18px]">delete</span>
+                          <Icon name="delete" sizeClass="text-[18px]" />
                         </button>
                       </div>
                     </div>
@@ -158,7 +203,7 @@ export default function KategoriPage({ setTab }) {
               </div>
             )}
           </div>
-        ))}
+        )}
       </div>
 
       {/* Modal */}
@@ -168,16 +213,16 @@ export default function KategoriPage({ setTab }) {
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-outline-variant/20 flex items-center justify-between flex-shrink-0">
               <h3 className="text-lg font-bold text-on-surface">{editingId ? "Edit Kategori" : "Kategori Baru"}</h3>
-              <button onClick={handleCloseModal} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest transition-colors text-on-surface-variant hover:text-on-surface">
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
+                <button onClick={handleCloseModal} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest transition-colors text-on-surface-variant hover:text-on-surface">
+                  <Icon name="close" sizeClass="text-[20px]" />
+                </button>
             </div>
 
             {/* Modal Body */}
             <div className="overflow-y-auto p-6 space-y-4">
               {error && (
                 <div className="p-3 bg-error/10 border border-error/20 rounded-xl text-xs text-error font-semibold flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[16px]">error</span>
+                  <Icon name="error" sizeClass="text-[16px]" />
                   {error}
                 </div>
               )}
@@ -197,11 +242,12 @@ export default function KategoriPage({ setTab }) {
               {/* Type */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Grup</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {[
                     { val: "Needs", label: "Needs" },
                     { val: "Wants", label: "Wants" },
-                    { val: "Savings", label: "Savings" }
+                    { val: "Savings", label: "Savings" },
+                    { val: "Income", label: "Income" }
                   ].map(t => (
                     <button
                       key={t.val} type="button"

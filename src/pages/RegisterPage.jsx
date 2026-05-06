@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import Icon from "../components/ui/Icon";
 
 // ── Password strength ──────────────────────────────────────────────────────────
 function getStrength(pwd) {
@@ -39,14 +40,14 @@ function Field({ label, icon, error, children }) {
         {label}
       </label>
       <div className="relative group">
-        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-emerald-400 transition-colors text-[18px] pointer-events-none">
-          {icon}
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-emerald-400 transition-colors pointer-events-none">
+          <Icon name={icon} sizeClass="text-[18px]" />
         </span>
         {children}
       </div>
       {error && (
         <p className="text-xs text-error mt-1.5 flex items-center gap-1">
-          <span className="material-symbols-outlined text-[12px]">error</span>
+          <Icon name="error" sizeClass="text-[12px]" />
           {error}
         </p>
       )}
@@ -112,7 +113,7 @@ export default function RegisterPage() {
         </div>
         <div className="w-full max-w-[400px] text-center">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 rounded-3xl mb-6 shadow-lg">
-            <span className="material-symbols-outlined text-[36px] text-emerald-400" style={{fontVariationSettings:"'FILL' 1"}}>mark_email_read</span>
+            <Icon name="mark_email_read" sizeClass="text-[36px] text-emerald-400" />
           </div>
           <h2 className="text-2xl font-black text-on-surface mb-3">Cek emailmu!</h2>
           <p className="text-sm text-on-surface-variant mb-2">Kami sudah kirim link konfirmasi ke:</p>
@@ -141,9 +142,7 @@ export default function RegisterPage() {
         {/* Logo */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl mb-5 shadow-lg shadow-emerald-500/5">
-            <span className="material-symbols-outlined text-[28px] text-emerald-400" style={{fontVariationSettings:"'FILL' 1"}}>
-              account_balance_wallet
-            </span>
+            <Icon name="account_balance_wallet" sizeClass="text-[28px] text-emerald-400" />
           </div>
           <h1 className="text-2xl font-black tracking-tight text-on-surface">Buat akun gratis</h1>
           <p className="text-sm text-on-surface-variant mt-1">Mulai kendali keuanganmu hari ini.</p>
@@ -156,7 +155,7 @@ export default function RegisterPage() {
 
             {apiError && (
               <div className="flex items-start gap-3 p-4 rounded-xl bg-error/10 border border-error/20">
-                <span className="material-symbols-outlined text-error text-[18px] mt-0.5">error</span>
+                <Icon name="error" sizeClass="text-error text-[18px] mt-0.5" />
                 <p className="text-sm text-error">{apiError}</p>
               </div>
             )}
@@ -181,8 +180,8 @@ export default function RegisterPage() {
                 Password
               </label>
               <div className="relative group">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-emerald-400 transition-colors text-[18px] pointer-events-none">
-                  lock
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-emerald-400 transition-colors pointer-events-none">
+                  <Icon name="lock" sizeClass="text-[18px]" />
                 </span>
                 <input type={showPass ? "text" : "password"}
                   value={form.password} onChange={set("password")}
@@ -194,7 +193,7 @@ export default function RegisterPage() {
                 </button>
               </div>
               {errors.password
-                ? <p className="text-xs text-error mt-1.5 flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">error</span>{errors.password}</p>
+                ? <p className="text-xs text-error mt-1.5 flex items-center gap-1"><Icon name="error" sizeClass="text-[12px]" />{errors.password}</p>
                 : form.password.length > 0 && <PasswordStrength password={form.password}/>
               }
             </div>
@@ -205,8 +204,8 @@ export default function RegisterPage() {
                 Konfirmasi Password
               </label>
               <div className="relative group">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-emerald-400 transition-colors text-[18px] pointer-events-none">
-                  {form.confirm && form.password === form.confirm ? "check_circle" : "lock_reset"}
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-emerald-400 transition-colors pointer-events-none">
+                  <Icon name={form.confirm && form.password === form.confirm ? "check_circle" : "lock_reset"} sizeClass="text-[18px]" />
                 </span>
                 <input type={showPass ? "text" : "password"}
                   value={form.confirm} onChange={set("confirm")}
@@ -216,13 +215,12 @@ export default function RegisterPage() {
                       ? "border-emerald-500/40 focus:border-emerald-500/60" : ""
                   }`}/>
                 {form.confirm && form.password === form.confirm && (
-                  <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-emerald-400 text-[18px]"
-                    style={{fontVariationSettings:"'FILL' 1"}}>check_circle</span>
+                  <Icon name="check_circle" sizeClass="text-emerald-400 text-[18px]" />
                 )}
               </div>
               {errors.confirm && (
                 <p className="text-xs text-error mt-1.5 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[12px]">error</span>
+                  <Icon name="error" sizeClass="text-[12px]" />
                   {errors.confirm}
                 </p>
               )}

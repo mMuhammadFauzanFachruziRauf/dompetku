@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useTransaction }    from "../contexts/TransactionContext";
 import { formatRupiah, getMeta, formatDate } from "../utils/helpers";
+import Icon from "../components/ui/Icon";
 import { downloadExcel }     from "../utils/exportExcel";
 import EditTransactionModal  from "../components/EditTransactionModal";
 
@@ -63,7 +64,7 @@ export default function RiwayatPage({ setTab }) {
           disabled={filtered.length === 0}
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container border border-outline-variant/30 text-xs font-bold text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <span className="material-symbols-outlined text-[16px]">table_view</span>
+          <Icon name="table_view" sizeClass="text-[16px]" />
           <span className="hidden md:inline">Export Excel</span>
           <span className="md:hidden">Excel</span>
         </button>
@@ -71,8 +72,8 @@ export default function RiwayatPage({ setTab }) {
 
       {/* Search */}
       <div className="relative group">
-        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-secondary transition-colors text-[18px]">
-          search
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-secondary transition-colors">
+          <Icon name="search" sizeClass="text-[18px]" />
         </span>
         <input type="search" value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Cari transaksi..."
@@ -91,7 +92,7 @@ export default function RiwayatPage({ setTab }) {
                   ? "bg-emerald-500 text-slate-900 border-emerald-500"
                   : "bg-surface-container/60 text-on-surface-variant border-outline-variant/30 hover:border-outline-variant/60 hover:text-on-surface"
               }`}>
-              {m && <span className={`material-symbols-outlined text-[12px] ${isActive ? "" : m.color}`}>{m.icon}</span>}
+              {m && <Icon name={m.icon} className={`${isActive ? "" : m.color}`} sizeClass="text-[12px]" />}
               {kat === ALL ? "✨ Semua" : kat}
             </button>
           );
@@ -101,7 +102,7 @@ export default function RiwayatPage({ setTab }) {
       {/* Summary strip */}
       <div className="glass-card px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-[16px] text-on-surface-variant">receipt_long</span>
+          <Icon name="receipt_long" sizeClass="text-[16px] text-on-surface-variant" />
           <p className="text-xs font-semibold text-on-surface-variant">
             {filtered.length} transaksi{filterKat !== ALL && ` · ${filterKat}`}
           </p>
@@ -122,7 +123,7 @@ export default function RiwayatPage({ setTab }) {
       {/* Empty state */}
       {!loading && filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <span className="material-symbols-outlined text-[48px] text-on-surface-variant/30 mb-4">folder_open</span>
+          <Icon name="folder_open" sizeClass="text-[48px] text-on-surface-variant/30 mb-4" />
           <p className="text-sm font-semibold text-on-surface-variant">Tidak ada transaksi</p>
           <p className="text-xs text-on-surface-variant/60 mt-1">
             {search || filterKat !== ALL ? "Coba ganti filter atau kata pencarian" : "Belum ada transaksi bulan ini"}
@@ -161,7 +162,7 @@ export default function RiwayatPage({ setTab }) {
 
                   {/* Icon */}
                   <div className={`w-10 h-10 rounded-full ${m.bg} flex items-center justify-center flex-shrink-0`}>
-                    <span className={`material-symbols-outlined text-[18px] ${m.color}`}>{m.icon}</span>
+                    <Icon name={m.icon} className={m.color} sizeClass="text-[18px]" />
                   </div>
 
                   {/* Info */}
@@ -187,11 +188,11 @@ export default function RiwayatPage({ setTab }) {
                       <div className="flex items-center gap-2">
                         <button onClick={() => setEditingTx(tx)}
                           className="text-[10px] text-outline hover:text-emerald-400 transition-colors font-semibold flex items-center gap-0.5">
-                          <span className="material-symbols-outlined text-[12px]">edit</span> Edit
+                          <Icon name="edit" sizeClass="text-[12px]" /> Edit
                         </button>
                         <button onClick={() => setConfirmId(tx.id)}
                           className="text-[10px] text-outline hover:text-error transition-colors font-semibold flex items-center gap-0.5">
-                          <span className="material-symbols-outlined text-[12px]">delete</span> Hapus
+                          <Icon name="delete" sizeClass="text-[12px]" /> Hapus
                         </button>
                       </div>
                     ) : (

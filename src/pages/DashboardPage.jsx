@@ -1,6 +1,7 @@
 import { useAuth } from "../contexts/AuthContext";
 import { useTransaction } from "../contexts/TransactionContext";
 import { formatRupiah, formatDate, getMeta } from "../utils/helpers";
+import Icon from "../components/ui/Icon";
 import { useState } from "react";
 
 function OnboardingBanner({ selectedDate, updateCurrentMonthSalary }) {
@@ -24,7 +25,7 @@ function OnboardingBanner({ selectedDate, updateCurrentMonthSalary }) {
       
       <div className="relative z-10 flex flex-col items-center text-center max-w-lg mx-auto space-y-4">
         <div className="w-20 h-20 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-2 shadow-inner">
-          <span className="material-symbols-outlined text-[40px] text-emerald-400">waving_hand</span>
+          <Icon name="waving_hand" sizeClass="text-[40px] text-emerald-400" />
         </div>
         <h2 className="text-2xl md:text-3xl font-black text-on-surface tracking-tight">Selamat Datang di DompetKu!</h2>
         <p className="text-sm md:text-base text-on-surface-variant leading-relaxed">
@@ -41,8 +42,8 @@ function OnboardingBanner({ selectedDate, updateCurrentMonthSalary }) {
             </p>
           </div>
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">
-              payments
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
+              <Icon name="payments" sizeClass="text-[18px]" />
             </span>
             <input
               type="number"
@@ -65,7 +66,7 @@ function OnboardingBanner({ selectedDate, updateCurrentMonthSalary }) {
             className="w-full bg-emerald-500 text-slate-900 font-bold py-4 rounded-xl hover:bg-emerald-400 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
           >
             {loading ? "Menyimpan..." : "Mulai Gunakan DompetKu"}
-            {!loading && <span className="material-symbols-outlined text-[18px]">arrow_forward</span>}
+            {!loading && <Icon name="arrow_forward" sizeClass="text-[18px]" />}
           </button>
           <button
             onClick={() => handleSave(true)}
@@ -101,7 +102,7 @@ function StatCard({ label, value, icon, color="text-on-surface", sub }) {
     <div className="glass-card p-4 flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold tracking-widest uppercase text-on-surface-variant">{label}</p>
-        <span className={`material-symbols-outlined text-[18px] ${color}`}>{icon}</span>
+        <Icon name={icon} className={color} sizeClass="text-[18px]" />
       </div>
       <p className={`text-xl font-bold leading-tight ${color}`}>{value}</p>
       {sub && <p className="text-xs text-on-surface-variant">{sub}</p>}
@@ -114,7 +115,7 @@ function TxRow({ tx, categories }) {
   return (
     <div className="flex items-center gap-3 p-3.5 rounded-xl bg-surface-dim border border-outline-variant/20 hover:border-outline-variant/50 hover:bg-surface-container-high transition-all">
       <div className={`w-10 h-10 rounded-full ${m.bg} flex items-center justify-center flex-shrink-0`}>
-        <span className={`material-symbols-outlined text-[18px] ${m.color}`}>{m.icon}</span>
+        <Icon name={m.icon} className={m.color} sizeClass="text-[18px]" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-on-surface truncate">{tx.catatan || tx.kategori}</p>
@@ -131,7 +132,7 @@ function CategoryBars({ byCategory, totalSpent, categories }) {
   const sorted = Object.entries(byCategory).sort((a,b) => b[1]-a[1]).slice(0,5);
   if (!sorted.length) return (
     <div className="flex flex-col items-center justify-center h-28 text-on-surface-variant">
-      <span className="material-symbols-outlined text-[32px] mb-2">bar_chart</span>
+      <Icon name="bar_chart" sizeClass="text-[32px] mb-2" />
       <p className="text-xs">Belum ada data</p>
     </div>
   );
@@ -144,7 +145,7 @@ function CategoryBars({ byCategory, totalSpent, categories }) {
           <div key={kat}>
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
-                <span className={`material-symbols-outlined text-[14px] ${m.color}`}>{m.icon}</span>
+                <Icon name={m.icon} className={m.color} sizeClass="text-[14px]" />
                 <span className="text-xs font-medium text-on-surface-variant">{kat}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -299,7 +300,7 @@ export default function DashboardPage({ setTab }) {
             </div>
           ) : transactions.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center py-10 text-center">
-              <span className="material-symbols-outlined text-[40px] text-on-surface-variant mb-3">receipt_long</span>
+              <Icon name="receipt_long" sizeClass="text-[40px] text-on-surface-variant mb-3" />
               <p className="text-sm text-on-surface-variant">Belum ada transaksi bulan ini</p>
               <button onClick={() => setTab("catat")}
                 className="mt-3 text-xs font-bold text-secondary hover:underline">
@@ -327,9 +328,9 @@ export default function DashboardPage({ setTab }) {
               ].map(item => (
                 <button key={item.label} onClick={item.action}
                   className="flex items-center gap-3 p-3 rounded-xl bg-surface-dim border border-outline-variant/20 hover:border-outline-variant/60 hover:bg-surface-container-high transition-all text-left">
-                  <span className={`material-symbols-outlined text-[20px] ${item.color}`}>{item.icon}</span>
-                  <span className="text-sm font-medium text-on-surface">{item.label}</span>
-                  <span className="material-symbols-outlined text-[16px] text-on-surface-variant ml-auto">chevron_right</span>
+                  <Icon name={item.icon} className={`${item.color}`} sizeClass="text-[20px]" />
+                    <span className="text-sm font-medium text-on-surface">{item.label}</span>
+                    <Icon name="chevron_right" sizeClass="text-[16px] text-on-surface-variant ml-auto" />
                 </button>
               ))}
             </div>

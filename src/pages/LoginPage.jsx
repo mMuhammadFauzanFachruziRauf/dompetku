@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import Icon from "../components/ui/Icon";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -60,10 +61,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl mb-5 shadow-lg shadow-emerald-500/5">
-            <span className="material-symbols-outlined text-[28px] text-emerald-400"
-              style={{fontVariationSettings:"'FILL' 1"}}>
-              account_balance_wallet
-            </span>
+            <Icon name="account_balance_wallet" sizeClass="text-[28px] text-emerald-400" />
           </div>
           <h1 className="text-2xl font-black tracking-tight text-on-surface">DompetKu</h1>
           <p className="text-sm text-on-surface-variant mt-1">Lacak keuangan, bebas ribet.</p>
@@ -80,7 +78,7 @@ export default function LoginPage() {
             {/* API error */}
             {apiError && (
               <div className="flex items-start gap-3 p-4 rounded-xl bg-error/10 border border-error/20">
-                <span className="material-symbols-outlined text-error text-[18px] mt-0.5">error</span>
+                <Icon name="error" sizeClass="text-error text-[18px] mt-0.5" />
                 <p className="text-sm text-error">{apiError}</p>
               </div>
             )}
@@ -91,8 +89,8 @@ export default function LoginPage() {
                 Email
               </label>
               <div className="relative group">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-emerald-400 transition-colors text-[18px]">
-                  mail
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-emerald-400 transition-colors">
+                  <Icon name="mail" sizeClass="text-[18px]" />
                 </span>
                 <input
                   type="email" value={form.email} onChange={set("email")}
@@ -105,10 +103,10 @@ export default function LoginPage() {
                 />
               </div>
               {errors.email && (
-                <p className="text-xs text-error mt-1.5 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[12px]">error</span>
-                  {errors.email}
-                </p>
+              <p className="text-xs text-error mt-1.5 flex items-center gap-1">
+                <Icon name="error" sizeClass="text-[12px]" />
+                {errors.email}
+              </p>
               )}
             </div>
 
@@ -118,8 +116,8 @@ export default function LoginPage() {
                 Password
               </label>
               <div className="relative group">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-emerald-400 transition-colors text-[18px]">
-                  lock
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-emerald-400 transition-colors">
+                  <Icon name="lock" sizeClass="text-[18px]" />
                 </span>
                 <input
                   type={showPass ? "text" : "password"} value={form.password} onChange={set("password")}
@@ -137,7 +135,7 @@ export default function LoginPage() {
               </div>
               {errors.password && (
                 <p className="text-xs text-error mt-1.5 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[12px]">error</span>
+                  <Icon name="error" sizeClass="text-[12px]" />
                   {errors.password}
                 </p>
               )}

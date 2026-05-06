@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import Icon from "./Icon";
 
 export const AVAILABLE_ICONS = [
   "restaurant", "local_cafe", "shopping_bag", "directions_car",
@@ -7,6 +8,13 @@ export const AVAILABLE_ICONS = [
   "fitness_center", "school", "pets", "local_hospital",
   "savings", "card_giftcard", "checkroom", "inventory_2"
 ];
+
+// Added money icons / emojis per user request
+// These are plain emoji glyphs; they render in the picker alongside material icons
+export const MONEY_ICONS = ["💸", "💳", "💰", "💵", "🏦", "🪙", "👛"];
+
+// Merge for rendering convenience
+export const ALL_AVAILABLE_ICONS = [...AVAILABLE_ICONS, ...MONEY_ICONS];
 
 export const AVAILABLE_COLORS = [
   "text-orange-400", "text-blue-400", "text-purple-400", 
@@ -43,12 +51,12 @@ export default function IconPicker({ selectedIcon, selectedColor, onSelectIcon, 
       >
         <div className="flex items-center gap-3">
           <div className={`w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center`}>
-            <span className={`material-symbols-outlined text-[18px] ${selectedColor}`}>{selectedIcon}</span>
+            <Icon name={selectedIcon} className={selectedColor} sizeClass="text-[18px]" />
           </div>
           <span className="text-sm font-semibold text-on-surface">Pilih Ikon & Warna</span>
         </div>
-        <span className="material-symbols-outlined text-on-surface-variant text-[20px]">
-          {isOpen ? "expand_less" : "expand_more"}
+        <span className="text-on-surface-variant text-[20px]">
+          <Icon name={isOpen ? "expand_less" : "expand_more"} sizeClass="text-[20px]" />
         </span>
       </button>
 
@@ -76,7 +84,7 @@ export default function IconPicker({ selectedIcon, selectedColor, onSelectIcon, 
           {/* Icons */}
           <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">Ikon</p>
           <div className="grid grid-cols-5 gap-2 max-h-48 overflow-y-auto no-scrollbar pb-1">
-            {AVAILABLE_ICONS.map(icon => (
+            {ALL_AVAILABLE_ICONS.map(icon => (
               <button
                 key={icon}
                 type="button"
@@ -87,7 +95,7 @@ export default function IconPicker({ selectedIcon, selectedColor, onSelectIcon, 
                     : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
                 }`}
               >
-                <span className="material-symbols-outlined text-[20px]">{icon}</span>
+                <Icon name={icon} sizeClass="text-[20px]" />
               </button>
             ))}
           </div>

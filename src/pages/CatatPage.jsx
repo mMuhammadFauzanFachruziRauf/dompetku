@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTransaction } from "../contexts/TransactionContext";
 import { parseSmartInput, getMeta, formatRupiah } from "../utils/helpers";
+import Icon from "../components/ui/Icon";
 
 export default function CatatPage({ setTab }) {
   const { addTransaction, categories, shortcuts } = useTransaction();
@@ -14,7 +15,7 @@ export default function CatatPage({ setTab }) {
   // Manual form state
   const [jenis,    setJenis]    = useState("Pengeluaran");
   const [nominal,  setNominal]  = useState("");
-  const [kategori, setKategori] = useState(categories.length > 0 ? categories[0].name : "Lainnya");
+  const [kategori, setKategori] = useState("Lainnya");
   const [catatan,  setCatatan]  = useState("");
   const [tanggal,  setTanggal]  = useState(new Date().toISOString().split("T")[0]);
   const [manLoading, setManLoading] = useState(false);
@@ -49,8 +50,9 @@ export default function CatatPage({ setTab }) {
     const nom = parseFloat(String(nominal).replace(/\./g,"").replace(/,/g,""));
     if (!nom || nom <= 0) { showToast("❌ Nominal harus diisi dan lebih dari 0", false); return; }
     setManLoading(true);
-    const finalNominal = jenis === "Pemasukan" ? -nom : nom;
-    const finalKat = jenis === "Pemasukan" ? "Pemasukan Tambahan" : kategori;
+    const isIncome = jenis === "Pemasukan";
+    const finalNominal = isIncome ? -nom : nom;
+    const finalKat = kategori;
     
     // Combine date with current time to maintain chronological ordering
     const now = new Date();
@@ -65,20 +67,58 @@ export default function CatatPage({ setTab }) {
     });
     setManLoading(false);
     if (error) { showToast(`❌ ${error}`, false); return; }
-    showToast(`✅ Dicatat ke ${finalKat}!`);
-    setNominal(""); setCatatan(""); setKategori(categories.length > 0 ? categories[0].name : "Lainnya");
-    setTimeout(() => setTab("dashboard"), 800);
+
+    // Success notification (use clearer message for Pemasukan)
+    if (isIncome) {
+      showToast("✅ Pemasukan berhasil dicatat!");
+    } else {
+      showToast(`✅ Dicatat ke ${finalKat}!`);
+    }
+
+    // Reset form inputs
+    setNominal("");
+    setCatatan("");
+    setTanggal(new Date().toISOString().split("T")[0]);
+
+    // reset kategori to sensible default after submit
+    if (categories && categories.length > 0) {
+      const defaultList = categories.filter(c => c.type === (isIncome ? "Income" : "Needs"));
+      setKategori(defaultList.length > 0 ? defaultList[0].name : categories[0].name);
+    } else {
+      setKategori("Lainnya");
+    }
+
+    setTimeout(() => setTab("dashboard"), isIncome ? 1400 : 800);
   };
 
   const preview = smartPreview;
   const previewMeta = preview ? getMeta(preview.kategori, categories) : null;
 
-  // Group categories for dropdown
+  // Group categories for dropdown (include Income)
   const groupedCategories = categories.reduce((acc, cat) => {
     if (!acc[cat.type]) acc[cat.type] = [];
     acc[cat.type].push(cat);
     return acc;
-  }, { Needs: [], Wants: [], Savings: [] });
+  }, { Needs: [], Wants: [], Savings: [], Income: [] });
+
+  // Keep selected category in sync when categories or jenis change
+  useEffect(() => {
+    if (!categories || categories.length === 0) return;
+    if (jenis === "Pemasukan") {
+      const incomeCats = categories.filter(c => c.type === "Income");
+      if (incomeCats.length > 0) setKategori(incomeCats[0].name);
+      else setKategori(categories[0].name);
+    } else {
+      // expense default: first Needs/Wants/Savings present
+      const expenseOrder = ["Needs", "Wants", "Savings"];
+      let found = null;
+      for (const t of expenseOrder) {
+        const list = categories.filter(c => c.type === t);
+        if (list.length > 0) { found = list[0].name; break; }
+      }
+      setKategori(found || categories[0].name);
+    }
+  }, [categories, jenis]);
 
   return (
     <div className="px-4 md:px-8 pt-4 md:pt-6 pb-6 max-w-[800px] mx-auto space-y-5">
@@ -99,14 +139,14 @@ export default function CatatPage({ setTab }) {
       {/* ── Smart Input ── */}
       <section className="glass-card p-6 space-y-4">
         <div className="flex items-center gap-2 mb-1">
-          <span className="material-symbols-outlined text-[18px] text-emerald-400">auto_awesome</span>
+          <Icon name="auto_awesome" sizeClass="text-[18px] text-emerald-400" />
           <h3 className="text-sm font-bold text-on-surface">Input Cepat</h3>
           <span className="text-xs text-on-surface-variant">— kategori otomatis terdeteksi</span>
         </div>
 
         <div className="relative group">
-          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-secondary transition-colors text-[20px]">
-            edit_note
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-secondary transition-colors">
+            <Icon name="edit_note" sizeClass="text-[20px]" />
           </span>
           <input
             value={smartText}
@@ -131,7 +171,7 @@ export default function CatatPage({ setTab }) {
         {/* Error */}
         {smartError && (
           <p className="text-xs text-error flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[14px]">error</span>
+            <Icon name="error" sizeClass="text-[14px]" />
             {smartError}
           </p>
         )}
@@ -141,9 +181,7 @@ export default function CatatPage({ setTab }) {
           <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
             <div className="flex items-center gap-3">
               <div className={`w-9 h-9 rounded-full ${previewMeta.bg} flex items-center justify-center`}>
-                <span className={`material-symbols-outlined text-[16px] ${previewMeta.color}`}>
-                  {previewMeta.icon}
-                </span>
+                <Icon name={previewMeta.icon} className={`${previewMeta.color}`} sizeClass="text-[16px]" />
               </div>
               <div>
                 <p className="text-xs font-semibold text-secondary">{preview.kategori}</p>
@@ -175,7 +213,7 @@ export default function CatatPage({ setTab }) {
       {/* ── Manual Form ── */}
       <section className="glass-card p-6 space-y-4">
         <div className="flex items-center gap-2 mb-1">
-          <span className="material-symbols-outlined text-[18px] text-primary">tune</span>
+          <Icon name="tune" sizeClass="text-[18px] text-primary" />
           <h3 className="text-sm font-bold text-on-surface">Form Manual</h3>
         </div>
 
@@ -191,8 +229,8 @@ export default function CatatPage({ setTab }) {
             Tanggal Transaksi
           </label>
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">
-              calendar_today
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
+              <Icon name="calendar_today" sizeClass="text-[18px]" />
             </span>
             <input
               type="date" 
@@ -209,8 +247,8 @@ export default function CatatPage({ setTab }) {
             Nominal (Rp)
           </label>
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">
-              payments
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
+              <Icon name="payments" sizeClass="text-[18px]" />
             </span>
             <input
               type="number" value={nominal}
@@ -221,32 +259,40 @@ export default function CatatPage({ setTab }) {
           </div>
         </div>
 
-        {/* Kategori */}
-        {jenis === "Pengeluaran" && (
+        {/* Kategori: show for both Pengeluaran and Pemasukan, but filtered by type */}
+        {(jenis === "Pengeluaran" || jenis === "Pemasukan") && (
           <div>
             <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
               Kategori
             </label>
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">
-                {getMeta(kategori, categories).icon}
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
+                <Icon name={getMeta(kategori, categories).icon} sizeClass="text-[18px]" />
               </span>
               <select
                 value={kategori} onChange={e => setKategori(e.target.value)}
                 className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl pl-11 pr-10 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all appearance-none"
               >
-                <optgroup label="🏠 Kebutuhan (Needs)">
-                  {groupedCategories.Needs.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </optgroup>
-                <optgroup label="🎯 Keinginan (Wants)">
-                  {groupedCategories.Wants.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </optgroup>
-                <optgroup label="💰 Tabungan (Savings)">
-                  {groupedCategories.Savings.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </optgroup>
+                {jenis === "Pemasukan" ? (
+                  <optgroup label="💸 Pemasukan (Income)">
+                    {(groupedCategories.Income || []).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </optgroup>
+                ) : (
+                  <>
+                    <optgroup label="🏠 Kebutuhan (Needs)">
+                      {groupedCategories.Needs.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </optgroup>
+                    <optgroup label="🎯 Keinginan (Wants)">
+                      {groupedCategories.Wants.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </optgroup>
+                    <optgroup label="💰 Tabungan (Savings)">
+                      {groupedCategories.Savings.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </optgroup>
+                  </>
+                )}
               </select>
-              <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px] pointer-events-none">
-                expand_more
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">
+                <Icon name="expand_more" sizeClass="text-[18px]" />
               </span>
             </div>
           </div>
@@ -258,8 +304,8 @@ export default function CatatPage({ setTab }) {
             Catatan <span className="normal-case font-normal">(opsional)</span>
           </label>
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">
-              notes
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
+              <Icon name="notes" sizeClass="text-[18px]" />
             </span>
             <input
               type="text" value={catatan}
@@ -278,7 +324,7 @@ export default function CatatPage({ setTab }) {
         >
           {manLoading
             ? <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z"/></svg>Menyimpan...</>
-            : <><span className="material-symbols-outlined text-[18px]">save</span>{jenis === "Pemasukan" ? "Simpan Pemasukan" : "Simpan Pengeluaran"}</>
+            : <><Icon name="save" sizeClass="text-[18px]" />{jenis === "Pemasukan" ? "Simpan Pemasukan" : "Simpan Pengeluaran"}</>
           }
         </button>
       </section>

@@ -3,6 +3,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useTransaction } from "../../contexts/TransactionContext";
 import { formatRupiah } from "../../utils/helpers";
 import SettingsModal from "../SettingsModal";
+import Icon from "../ui/Icon";
 
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard",    icon: "dashboard",              iconFilled: "dashboard"             },
@@ -26,13 +27,13 @@ const MonthSelector = () => {
   const monthName = selectedDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
   
   return (
-    <div className="flex items-center gap-1 bg-surface-dim border border-outline-variant/30 rounded-xl px-1.5 py-1">
+      <div className="flex items-center gap-1 bg-surface-dim border border-outline-variant/30 rounded-xl px-1.5 py-1">
       <button onClick={handlePrev} className="p-1 text-on-surface-variant hover:text-emerald-400 transition-colors flex items-center justify-center">
-        <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+        <Icon name="chevron_left" sizeClass="text-[18px]" />
       </button>
       <span className="text-xs font-bold text-on-surface min-w-[90px] text-center capitalize">{monthName}</span>
       <button onClick={handleNext} className="p-1 text-on-surface-variant hover:text-emerald-400 transition-colors flex items-center justify-center">
-        <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+        <Icon name="chevron_right" sizeClass="text-[18px]" />
       </button>
     </div>
   );
@@ -60,7 +61,7 @@ export default function AppLayout({ tab, setTab, children }) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 flex flex-col gap-1 px-4">
+          <nav className="flex-1 flex flex-col gap-1 px-4">
           {NAV_ITEMS.map(item => {
             const isActive = tab === item.key;
             return (
@@ -74,12 +75,7 @@ export default function AppLayout({ tab, setTab, children }) {
                     : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-100",
                 ].join(" ")}
               >
-                <span
-                  className="material-symbols-outlined text-[20px]"
-                  style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
-                >
-                  {item.icon}
-                </span>
+                <Icon name={item.icon} className="" sizeClass="text-[20px]" />
                 <span className="text-xs font-semibold tracking-widest uppercase">{item.label}</span>
               </button>
             );
@@ -118,7 +114,7 @@ export default function AppLayout({ tab, setTab, children }) {
               <p className="text-sm font-semibold text-on-surface truncate">{name}</p>
               <p className="text-xs text-on-surface-variant truncate">{user?.email}</p>
             </div>
-            <span className="material-symbols-outlined text-slate-500 text-[16px]">unfold_more</span>
+            <Icon name="unfold_more" sizeClass="text-slate-500 text-[16px]" />
           </button>
 
           {showUserMenu && (
@@ -130,7 +126,7 @@ export default function AppLayout({ tab, setTab, children }) {
                 }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-on-surface hover:bg-surface-container-highest transition-colors border-b border-outline-variant/20"
               >
-                <span className="material-symbols-outlined text-[18px]">settings</span>
+                <Icon name="settings" sizeClass="text-[18px]" />
                 Pengaturan
               </button>
               <button
@@ -140,14 +136,14 @@ export default function AppLayout({ tab, setTab, children }) {
                 }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-on-surface hover:bg-surface-container-highest transition-colors border-b border-outline-variant/20"
               >
-                <span className="material-symbols-outlined text-[18px]">category</span>
+                <Icon name="category" sizeClass="text-[18px]" />
                 Kelola Kategori
               </button>
               <button
                 onClick={signOut}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-error hover:bg-error/10 transition-colors"
               >
-                <span className="material-symbols-outlined text-[18px]">logout</span>
+                <Icon name="logout" sizeClass="text-[18px]" />
                 Logout
               </button>
             </div>
@@ -184,23 +180,23 @@ export default function AppLayout({ tab, setTab, children }) {
         </header>
 
         {/* Mobile top bar */}
-        <header className="md:hidden fixed top-0 left-0 right-0 h-14 z-40 bg-slate-900/70 backdrop-blur-md border-b border-slate-800/50 flex items-center justify-between px-5">
+        <div className="md:hidden fixed top-0 left-0 right-0 h-14 z-40 bg-slate-900/70 backdrop-blur-md border-b border-slate-800/50 flex items-center justify-between px-5">
           <h1 className="text-lg font-black text-emerald-400 tracking-tighter">DompetKu</h1>
           <div className="flex items-center gap-3">
             <button onClick={() => setTab("kategori")} className="flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors">
-               <span className="material-symbols-outlined text-[20px]">category</span>
+              <Icon name="category" sizeClass="text-[20px]" />
             </button>
             <button onClick={() => setShowSettings(true)} className="flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors">
-               <span className="material-symbols-outlined text-[20px]">settings</span>
+              <Icon name="settings" sizeClass="text-[20px]" />
             </button>
             <button onClick={signOut} className="flex items-center justify-center text-error hover:text-error/80 transition-colors">
-               <span className="material-symbols-outlined text-[20px]">logout</span>
+              <Icon name="logout" sizeClass="text-[20px]" />
             </button>
             <div className="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-xs font-bold">
               {initials}
             </div>
           </div>
-        </header>
+        </div>
 
         {/* Mobile Month Selector */}
         <div className="md:hidden fixed top-14 left-0 right-0 z-30 bg-slate-900/80 backdrop-blur-md border-b border-slate-800/50 px-5 py-2 flex items-center justify-between">
@@ -223,12 +219,7 @@ export default function AppLayout({ tab, setTab, children }) {
                 onClick={() => setTab(item.key)}
                 className="flex-1 flex flex-col items-center gap-1 py-2.5 transition-all"
               >
-                <span
-                  className={`material-symbols-outlined text-[22px] ${isActive ? "text-emerald-400" : "text-slate-500"}`}
-                  style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
-                >
-                  {item.icon}
-                </span>
+                <Icon name={item.icon} className={`${isActive ? "text-emerald-400" : "text-slate-500"}`} sizeClass="text-[22px]" />
                 <span className={`text-[9px] font-bold tracking-widest uppercase ${isActive ? "text-emerald-400" : "text-slate-600"}`}>
                   {item.label}
                 </span>

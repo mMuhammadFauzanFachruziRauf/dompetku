@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useTransaction } from "../contexts/TransactionContext";
 import { formatRupiah, getMeta } from "../utils/helpers";
+import Icon from "../components/ui/Icon";
 
 export default function StatistikPage() {
   const { transactions, categories, loading, income, totalSpent, remaining, byCategory } = useTransaction();
@@ -88,9 +89,9 @@ export default function StatistikPage() {
         <h3 className="text-sm font-bold text-on-surface mb-5">Top Kategori</h3>
         {top5.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-on-surface-variant">
-            <span className="material-symbols-outlined text-[36px] mb-2">bar_chart</span>
-            <p className="text-sm">Belum ada data</p>
-          </div>
+              <Icon name="bar_chart" sizeClass="text-[36px] mb-2" />
+              <p className="text-sm">Belum ada data</p>
+            </div>
         ) : (
           <div className="space-y-4">
             {top5.map(([kat, val]) => {
@@ -100,7 +101,7 @@ export default function StatistikPage() {
               return (
                 <div key={kat} className="flex items-center gap-4">
                   <div className={`w-9 h-9 rounded-full ${m.bg} flex items-center justify-center flex-shrink-0`}>
-                    <span className={`material-symbols-outlined text-[16px] ${m.color}`}>{m.icon}</span>
+                    <Icon name={m.icon} className={m.color} sizeClass="text-[16px]" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1.5">
@@ -127,7 +128,7 @@ export default function StatistikPage() {
         <h3 className="text-sm font-bold text-on-surface mb-5">Pengeluaran Harian (Bulan Ini)</h3>
         {transactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-24 text-on-surface-variant">
-            <span className="material-symbols-outlined text-[32px] mb-2">show_chart</span>
+            <Icon name="show_chart" sizeClass="text-[32px] mb-2" />
             <p className="text-sm">Belum ada data</p>
           </div>
         ) : (
@@ -171,7 +172,7 @@ export default function StatistikPage() {
         ].map(s => (
           <div key={s.label} className="glass-card p-4">
             <div className="flex items-center gap-2 mb-2">
-              <span className={`material-symbols-outlined text-[18px] ${s.color}`}>{s.icon}</span>
+              <Icon name={s.icon} className={s.color} sizeClass="text-[18px]" />
               <p className="text-xs text-on-surface-variant">{s.label}</p>
             </div>
             <p className={`text-base font-bold ${s.color}`}>{s.val}</p>

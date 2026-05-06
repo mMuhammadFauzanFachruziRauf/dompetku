@@ -11,6 +11,7 @@ import RiwayatPage                      from "./pages/RiwayatPage";
 import StatistikPage                    from "./pages/StatistikPage";
 import KategoriPage                     from "./pages/KategoriPage";
 import BudgetPage                       from "./pages/BudgetPage";
+import Icon from "./components/ui/Icon";
 
 // ── Loading Screen ─────────────────────────────────────────────────────────────
 function LoadingScreen() {
@@ -19,7 +20,7 @@ function LoadingScreen() {
       <div className="flex flex-col items-center gap-4">
         <div className="relative">
           <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-            <span className="material-symbols-outlined text-[28px] text-emerald-400">account_balance_wallet</span>
+            <Icon name="account_balance_wallet" sizeClass="text-[28px] text-emerald-400" />
           </div>
           <div className="absolute -inset-1 rounded-3xl border border-emerald-500/20 animate-ping opacity-30" />
         </div>

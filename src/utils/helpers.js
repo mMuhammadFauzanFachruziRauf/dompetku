@@ -109,3 +109,9 @@ export function getMeta(katName, categories = []) {
     bgBase: "bg-slate-400"
   };
 }
+
+export function isMaterialIcon(name) {
+  if (!name || typeof name !== 'string') return false;
+  // Allow lowercase letters, digits and underscores (e.g. inventory_2)
+  return /^[a-z0-9_]+$/.test(name);
+}

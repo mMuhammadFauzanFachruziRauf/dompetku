@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTransaction } from "../contexts/TransactionContext";
 import { getMeta } from "../utils/helpers";
+import Icon from "./ui/Icon";
 
 export default function EditTransactionModal({ isOpen, onClose, transaction }) {
   const { categories, updateTransaction } = useTransaction();
@@ -71,7 +72,7 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest transition-colors text-on-surface-variant hover:text-on-surface"
           >
-            <span className="material-symbols-outlined text-[20px]">close</span>
+            <Icon name="close" sizeClass="text-[20px]" />
           </button>
         </div>
 
@@ -89,9 +90,9 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
             <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
               Nominal (Rp)
             </label>
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">
-                payments
+          <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
+                <Icon name="payments" sizeClass="text-[18px]" />
               </span>
               <input
                 type="number" value={nominal}
@@ -109,8 +110,8 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
                 Kategori
               </label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">
-                  {getMeta(kategori, categories).icon}
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
+                  <Icon name={getMeta(kategori, categories).icon} sizeClass="text-[18px]" />
                 </span>
                 <select
                   value={kategori} onChange={e => setKategori(e.target.value)}
@@ -126,8 +127,8 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
                     {groupedCategories.Savings.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </optgroup>
                 </select>
-                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px] pointer-events-none">
-                  expand_more
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">
+                  <Icon name="expand_more" sizeClass="text-[18px]" />
                 </span>
               </div>
             </div>
@@ -139,8 +140,8 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
               Catatan <span className="normal-case font-normal">(opsional)</span>
             </label>
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">
-                notes
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
+                <Icon name="notes" sizeClass="text-[18px]" />
               </span>
               <input
                 type="text" value={catatan}

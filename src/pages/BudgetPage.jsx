@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTransaction } from "../contexts/TransactionContext";
 import { formatRupiah, getMeta } from "../utils/helpers";
+import Icon from "../components/ui/Icon";
 
 export default function BudgetPage() {
   const { getBudgetProgress, categories, categoryBudgets, updateCategoryBudgets } = useTransaction();
@@ -67,7 +68,7 @@ export default function BudgetPage() {
       {/* ── Progress Section ── */}
       <section className="glass-card p-6 space-y-5">
         <div className="flex items-center gap-2 mb-2">
-          <span className="material-symbols-outlined text-[20px] text-emerald-400">monitoring</span>
+          <Icon name="monitoring" sizeClass="text-[20px] text-emerald-400" />
           <h3 className="text-sm font-bold text-on-surface uppercase tracking-widest">Progress Bulan Ini</h3>
         </div>
 
@@ -89,7 +90,7 @@ export default function BudgetPage() {
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center gap-2.5">
                       <div className={`w-8 h-8 rounded-full ${meta.bg} flex items-center justify-center`}>
-                        <span className={`material-symbols-outlined text-[16px] ${meta.color}`}>{meta.icon}</span>
+                        <Icon name={meta.icon} className={meta.color} sizeClass="text-[16px]" />
                       </div>
                       <div>
                         <p className="text-sm font-bold text-on-surface">{item.category}</p>
@@ -125,7 +126,7 @@ export default function BudgetPage() {
       {/* ── Management Section ── */}
       <section className="glass-card p-6 space-y-4">
         <div className="flex items-center gap-2 mb-1">
-          <span className="material-symbols-outlined text-[20px] text-primary">tune</span>
+          <Icon name="tune" sizeClass="text-[20px] text-primary" />
           <h3 className="text-sm font-bold text-on-surface uppercase tracking-widest">Manajemen Alokasi</h3>
         </div>
 
@@ -141,7 +142,7 @@ export default function BudgetPage() {
               <div key={cat.id} className="flex items-center justify-between bg-surface-dim p-3 rounded-xl border border-outline-variant/30 hover:border-outline-variant/50 transition-all">
                 <div className="flex items-center gap-2 w-1/2">
                   <div className={`w-7 h-7 rounded-full ${meta.bg} flex items-center justify-center flex-shrink-0`}>
-                    <span className={`material-symbols-outlined text-[14px] ${meta.color}`}>{meta.icon}</span>
+                    <Icon name={meta.icon} className={meta.color} sizeClass="text-[14px]" />
                   </div>
                   <p className="text-xs font-semibold text-on-surface truncate">{cat.name}</p>
                 </div>
@@ -169,7 +170,7 @@ export default function BudgetPage() {
         >
           {loading
             ? <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z" /></svg>Menyimpan...</>
-            : <><span className="material-symbols-outlined text-[18px]">save</span>Simpan Alokasi</>
+            : <><Icon name="save" sizeClass="text-[18px]" />Simpan Alokasi</>
           }
         </button>
       </section>
