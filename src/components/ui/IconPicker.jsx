@@ -23,7 +23,13 @@ export const AVAILABLE_COLORS = [
   "text-indigo-400", "text-teal-400", "text-slate-400"
 ];
 
-export default function IconPicker({ selectedIcon, selectedColor, onSelectIcon, onSelectColor }) {
+export default function IconPicker({
+  selectedIcon,
+  selectedColor,
+  onSelectIcon,
+  onSelectColor,
+  showColors = true,
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -41,7 +47,7 @@ export default function IconPicker({ selectedIcon, selectedColor, onSelectIcon, 
   return (
     <div className="relative" ref={dropdownRef}>
       <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
-        Ikon & Warna
+        {showColors ? "Ikon & Warna" : "Ikon"}
       </label>
       
       <button
@@ -53,7 +59,7 @@ export default function IconPicker({ selectedIcon, selectedColor, onSelectIcon, 
           <div className={`w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center`}>
             <Icon name={selectedIcon} className={selectedColor} sizeClass="text-[18px]" />
           </div>
-          <span className="text-sm font-semibold text-on-surface">Pilih Ikon & Warna</span>
+          <span className="text-sm font-semibold text-on-surface">{showColors ? "Pilih Ikon & Warna" : "Pilih Ikon"}</span>
         </div>
         <span className="text-on-surface-variant text-[20px]">
           <Icon name={isOpen ? "expand_less" : "expand_more"} sizeClass="text-[20px]" />
@@ -62,24 +68,28 @@ export default function IconPicker({ selectedIcon, selectedColor, onSelectIcon, 
 
       {isOpen && (
         <div className="absolute z-50 top-full mt-2 w-full bg-surface-container-high border border-outline-variant/30 rounded-xl shadow-2xl p-4 animate-fade-in">
-          {/* Colors */}
-          <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">Warna Tema</p>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {AVAILABLE_COLORS.map(color => {
-              // Extract the base color name for the background (e.g., text-emerald-400 -> bg-emerald-400)
-              const bgClass = color.replace("text-", "bg-");
-              return (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => onSelectColor(color)}
-                  className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform ${bgClass} ${selectedColor === color ? "scale-110 ring-2 ring-offset-2 ring-offset-surface-container-high ring-emerald-400" : "hover:scale-110 opacity-80"}`}
-                />
-              );
-            })}
-          </div>
+          {showColors && (
+            <>
+              {/* Colors */}
+              <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">Warna Tema</p>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {AVAILABLE_COLORS.map(color => {
+                  // Extract the base color name for the background (e.g., text-emerald-400 -> bg-emerald-400)
+                  const bgClass = color.replace("text-", "bg-");
+                  return (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => onSelectColor?.(color)}
+                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform ${bgClass} ${selectedColor === color ? "scale-110 ring-2 ring-offset-2 ring-offset-surface-container-high ring-emerald-400" : "hover:scale-110 opacity-80"}`}
+                    />
+                  );
+                })}
+              </div>
 
-          <div className="w-full h-px bg-outline-variant/20 mb-3" />
+              <div className="w-full h-px bg-outline-variant/20 mb-3" />
+            </>
+          )}
 
           {/* Icons */}
           <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">Ikon</p>

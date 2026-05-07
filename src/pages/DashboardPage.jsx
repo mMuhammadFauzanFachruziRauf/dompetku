@@ -129,7 +129,13 @@ function TxRow({ tx, categories }) {
 }
 
 function CategoryBars({ byCategory, totalSpent, categories }) {
-  const sorted = Object.entries(byCategory).sort((a,b) => b[1]-a[1]).slice(0,5);
+  const sorted = Object.entries(byCategory)
+    .filter(([kat]) => {
+      const category = categories.find((c) => c.name === kat);
+      return category && category.type !== "Income";
+    })
+    .sort((a,b) => b[1]-a[1])
+    .slice(0,5);
   if (!sorted.length) return (
     <div className="flex flex-col items-center justify-center h-28 text-on-surface-variant">
       <Icon name="bar_chart" sizeClass="text-[32px] mb-2" />
@@ -365,12 +371,12 @@ export default function DashboardPage({ setTab }) {
                     key={wallet.id}
                     className="p-4 rounded-xl bg-surface-dim border border-outline-variant/30 flex items-center justify-between"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-lg">
-                        {wallet.icon || "👛"}
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant flex-shrink-0">
+                        <Icon name={wallet.icon || "👛"} sizeClass="text-[20px]" />
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-on-surface">{wallet.name}</p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-on-surface truncate">{wallet.name}</p>
                         <p className="text-xs text-on-surface-variant">Saldo saat ini</p>
                       </div>
                     </div>

@@ -79,7 +79,7 @@ export function TransactionProvider({ children }) {
     if (!user) return;
     const { data, error: err } = await supabase
       .from("transactions")
-      .select("id, jenis, nominal, wallet_id, to_wallet_id, tanggal")
+      .select("id, jenis, nominal, kategori, wallet_id, to_wallet_id, tanggal")
       .eq("user_id", user.id)
       .order("tanggal", { ascending: true });
 
@@ -360,7 +360,10 @@ export function TransactionProvider({ children }) {
   }, [categories]);
 
   const resolveTransactionType = useCallback((tx) => {
-    if (tx?.jenis) return tx.jenis;
+    const rawJenis = typeof tx?.jenis === "string" ? tx.jenis.toLowerCase() : "";
+    if (rawJenis === "pemasukan" || rawJenis === "pengeluaran" || rawJenis === "transfer") {
+      return rawJenis;
+    }
     const categoryType = categoryTypeByName[tx?.kategori];
     if (categoryType === "Income") return "pemasukan";
     if (categoryType) return "pengeluaran";
@@ -484,6 +487,7 @@ export function TransactionProvider({ children }) {
     ) {
       setTransactions((prev) => [...prev, data].sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal)));
     }
+    setAllTransactions((prev) => [...prev, data].sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal)));
     return { data };
   };
 
@@ -519,8 +523,13 @@ export function TransactionProvider({ children }) {
   const totalIncomeTx = transactions
     .filter((t) => resolveTransactionType(t) === "pemasukan")
     .reduce((s, t) => s + Math.abs(Number(t.nominal || 0)), 0);
-  const remaining = income + totalIncomeTx - totalSpent;
-  const totalMonthlyIncome = income + totalIncomeTx;
+  const totalWalletStartingBalance = wallets.reduce(
+    (sum, wallet) => sum + Number(wallet.starting_balance || 0),
+    0
+  );
+  const totalBaseIncome = income + totalWalletStartingBalance;
+  const remaining = totalBaseIncome + totalIncomeTx - totalSpent;
+  const totalMonthlyIncome = totalBaseIncome + totalIncomeTx;
   const pct = totalMonthlyIncome > 0
     ? Math.max(0, Math.min(Math.round((totalSpent / totalMonthlyIncome) * 100), 100))
     : 0;
@@ -533,7 +542,8 @@ export function TransactionProvider({ children }) {
     }, {});
 
   const expenseByCategory = transactions
-    .filter((t) => t.jenis === "pengeluaran")
+    .filter((t) => resolveTransactionType(t) === "pengeluaran")
+    .filter((t) => categoryTypeByName[t.kategori] !== "Income")
     .reduce((acc, t) => {
       acc[t.kategori] = (acc[t.kategori] || 0) + Math.abs(Number(t.nominal || 0));
       return acc;
@@ -556,19 +566,19 @@ export function TransactionProvider({ children }) {
       const nominalAbs = Math.abs(Number(tx.nominal || 0));
       if (!nominalAbs) continue;
 
-      const inferredJenis = tx.jenis || (Number(tx.nominal) < 0 ? "pemasukan" : "pengeluaran");
-      if (inferredJenis === "pemasukan" && tx.wallet_id && base[tx.wallet_id]) {
+      const txType = resolveTransactionType(tx);
+      if (txType === "pemasukan" && tx.wallet_id && base[tx.wallet_id]) {
         base[tx.wallet_id].balance += nominalAbs;
-      } else if (inferredJenis === "pengeluaran" && tx.wallet_id && base[tx.wallet_id]) {
+      } else if (txType === "pengeluaran" && tx.wallet_id && base[tx.wallet_id]) {
         base[tx.wallet_id].balance -= nominalAbs;
-      } else if (inferredJenis === "transfer") {
+      } else if (txType === "transfer") {
         if (tx.wallet_id && base[tx.wallet_id]) base[tx.wallet_id].balance -= nominalAbs;
         if (tx.to_wallet_id && base[tx.to_wallet_id]) base[tx.to_wallet_id].balance += nominalAbs;
       }
     }
 
     return base;
-  }, [wallets, allTransactions]);
+  }, [wallets, allTransactions, resolveTransactionType]);
 
   const getBudgetProgress = useCallback(() => {
     if (!currentMonthCategoryBudgets || Object.keys(currentMonthCategoryBudgets).length === 0) return [];

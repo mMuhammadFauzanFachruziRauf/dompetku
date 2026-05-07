@@ -35,6 +35,7 @@ export default function KategoriPage({ setTab }) {
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [editingWalletId, setEditingWalletId] = useState(null);
   const [walletForm, setWalletForm] = useState({ name: "", icon: "👛", starting_balance: "0" });
+  const [walletIconColor, setWalletIconColor] = useState("text-emerald-400");
 
   const handleOpenModal = (cat = null) => {
     if (cat) {
@@ -117,6 +118,7 @@ export default function KategoriPage({ setTab }) {
       setEditingWalletId(null);
       setWalletForm({ name: "", icon: "👛", starting_balance: "0" });
     }
+    setWalletIconColor("text-emerald-400");
     setError("");
     setWalletModalOpen(true);
   };
@@ -247,9 +249,9 @@ export default function KategoriPage({ setTab }) {
                     key={wallet.id}
                     className="flex items-center justify-between p-3.5 rounded-xl bg-surface-dim border border-outline-variant/30 hover:border-outline-variant/60 transition-colors group"
                   >
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-surface-container-high text-lg">
-                        {wallet.icon || "👛"}
+                    <div className="flex items-center gap-3 overflow-hidden min-w-0 flex-1">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-surface-container-high text-on-surface-variant">
+                        <Icon name={wallet.icon || "👛"} sizeClass="text-[20px]" />
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-on-surface truncate">{wallet.name}</p>
@@ -505,16 +507,13 @@ export default function KategoriPage({ setTab }) {
                   placeholder="Contoh: BCA / DANA / GoPay"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Icon (Emoji)</label>
-                <input
-                  type="text"
-                  value={walletForm.icon}
-                  onChange={(e) => setWalletForm({ ...walletForm, icon: e.target.value })}
-                  className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all"
-                  placeholder="👛"
-                />
-              </div>
+              <IconPicker
+                selectedIcon={walletForm.icon}
+                selectedColor={walletIconColor}
+                onSelectIcon={(icon) => setWalletForm({ ...walletForm, icon })}
+                onSelectColor={(color) => setWalletIconColor(color)}
+                showColors={false}
+              />
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Saldo Awal</label>
                 <input

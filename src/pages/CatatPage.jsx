@@ -160,6 +160,9 @@ export default function CatatPage({ setTab }) {
   }, [wallets, walletId, fromWalletId, toWalletId]);
 
   const availableToWallets = wallets.filter((w) => w.id !== fromWalletId);
+  const selectedWallet = wallets.find((w) => w.id === walletId);
+  const selectedFromWallet = wallets.find((w) => w.id === fromWalletId);
+  const selectedToWallet = wallets.find((w) => w.id === toWalletId);
 
   return (
     <div className="px-4 md:px-8 pt-4 md:pt-6 pb-6 max-w-[800px] mx-auto space-y-5">
@@ -271,17 +274,25 @@ export default function CatatPage({ setTab }) {
             <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
               Pilih Dompet / Rekening
             </label>
-            <select
-              value={walletId}
-              onChange={(e) => setWalletId(e.target.value)}
-              className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl px-4 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all appearance-none"
-            >
-              {wallets.map((wallet) => (
-                <option key={wallet.id} value={wallet.id}>
-                  {wallet.icon || "👛"} {wallet.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">
+                <Icon name={selectedWallet?.icon || "👛"} sizeClass="text-[18px]" />
+              </span>
+              <select
+                value={walletId}
+                onChange={(e) => setWalletId(e.target.value)}
+                className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl pl-11 pr-10 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all appearance-none"
+              >
+                {wallets.map((wallet) => (
+                  <option key={wallet.id} value={wallet.id}>
+                    {wallet.name}
+                  </option>
+                ))}
+              </select>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">
+                <Icon name="expand_more" sizeClass="text-[18px]" />
+              </span>
+            </div>
           </div>
         )}
 
@@ -292,40 +303,56 @@ export default function CatatPage({ setTab }) {
               <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
                 Dari Dompet
               </label>
-              <select
-                value={fromWalletId}
-                onChange={(e) => {
-                  const nextFrom = e.target.value;
-                  setFromWalletId(nextFrom);
-                  if (nextFrom === toWalletId) {
-                    const fallback = wallets.find((w) => w.id !== nextFrom);
-                    setToWalletId(fallback ? fallback.id : "");
-                  }
-                }}
-                className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl px-4 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all appearance-none"
-              >
-                {wallets.map((wallet) => (
-                  <option key={wallet.id} value={wallet.id}>
-                    {wallet.icon || "👛"} {wallet.name}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">
+                  <Icon name={selectedFromWallet?.icon || "👛"} sizeClass="text-[18px]" />
+                </span>
+                <select
+                  value={fromWalletId}
+                  onChange={(e) => {
+                    const nextFrom = e.target.value;
+                    setFromWalletId(nextFrom);
+                    if (nextFrom === toWalletId) {
+                      const fallback = wallets.find((w) => w.id !== nextFrom);
+                      setToWalletId(fallback ? fallback.id : "");
+                    }
+                  }}
+                  className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl pl-11 pr-10 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all appearance-none"
+                >
+                  {wallets.map((wallet) => (
+                    <option key={wallet.id} value={wallet.id}>
+                      {wallet.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">
+                  <Icon name="expand_more" sizeClass="text-[18px]" />
+                </span>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
                 Ke Dompet
               </label>
-              <select
-                value={toWalletId}
-                onChange={(e) => setToWalletId(e.target.value)}
-                className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl px-4 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all appearance-none"
-              >
-                {availableToWallets.map((wallet) => (
-                  <option key={wallet.id} value={wallet.id}>
-                    {wallet.icon || "👛"} {wallet.name}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">
+                  <Icon name={selectedToWallet?.icon || "👛"} sizeClass="text-[18px]" />
+                </span>
+                <select
+                  value={toWalletId}
+                  onChange={(e) => setToWalletId(e.target.value)}
+                  className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl pl-11 pr-10 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all appearance-none"
+                >
+                  {availableToWallets.map((wallet) => (
+                    <option key={wallet.id} value={wallet.id}>
+                      {wallet.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">
+                  <Icon name="expand_more" sizeClass="text-[18px]" />
+                </span>
+              </div>
             </div>
           </>
         )}
