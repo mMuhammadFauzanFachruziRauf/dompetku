@@ -4,7 +4,7 @@ import { parseSmartInput, getMeta, formatRupiah } from "../utils/helpers";
 import Icon from "../components/ui/Icon";
 
 export default function CatatPage({ setTab }) {
-  const { addTransaction, categories, shortcuts } = useTransaction();
+  const { addTransaction, categories, shortcuts, wallets } = useTransaction();
 
   // Smart input state
   const [smartText,    setSmartText]    = useState("");
@@ -18,6 +18,9 @@ export default function CatatPage({ setTab }) {
   const [kategori, setKategori] = useState("Lainnya");
   const [catatan,  setCatatan]  = useState("");
   const [tanggal,  setTanggal]  = useState(new Date().toISOString().split("T")[0]);
+  const [walletId, setWalletId] = useState("");
+  const [fromWalletId, setFromWalletId] = useState("");
+  const [toWalletId, setToWalletId] = useState("");
   const [manLoading, setManLoading] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -49,10 +52,24 @@ export default function CatatPage({ setTab }) {
   const handleManualSubmit = async () => {
     const nom = parseFloat(String(nominal).replace(/\./g,"").replace(/,/g,""));
     if (!nom || nom <= 0) { showToast("❌ Nominal harus diisi dan lebih dari 0", false); return; }
+    if (jenis === "Transfer") {
+      if (!fromWalletId || !toWalletId) {
+        showToast("❌ Pilih dompet asal dan tujuan terlebih dahulu", false);
+        return;
+      }
+      if (fromWalletId === toWalletId) {
+        showToast("❌ Dompet asal dan tujuan tidak boleh sama", false);
+        return;
+      }
+    } else if (!walletId) {
+      showToast("❌ Pilih dompet / rekening terlebih dahulu", false);
+      return;
+    }
     setManLoading(true);
     const isIncome = jenis === "Pemasukan";
-    const finalNominal = isIncome ? -nom : nom;
-    const finalKat = kategori;
+    const isTransfer = jenis === "Transfer";
+    const finalNominal = isTransfer ? nom : (isIncome ? -nom : nom);
+    const finalKat = isTransfer ? "Transfer" : kategori;
     
     // Combine date with current time to maintain chronological ordering
     const now = new Date();
@@ -63,13 +80,18 @@ export default function CatatPage({ setTab }) {
       nominal: finalNominal, 
       kategori: finalKat, 
       catatan: catatan || finalKat,
-      tanggal: dateObj.toISOString()
+      tanggal: dateObj.toISOString(),
+      jenis: isTransfer ? "transfer" : (isIncome ? "pemasukan" : "pengeluaran"),
+      wallet_id: isTransfer ? fromWalletId : walletId,
+      to_wallet_id: isTransfer ? toWalletId : null,
     });
     setManLoading(false);
     if (error) { showToast(`❌ ${error}`, false); return; }
 
     // Success notification (use clearer message for Pemasukan)
-    if (isIncome) {
+    if (isTransfer) {
+      showToast("✅ Transfer berhasil dicatat!");
+    } else if (isIncome) {
       showToast("✅ Pemasukan berhasil dicatat!");
     } else {
       showToast(`✅ Dicatat ke ${finalKat}!`);
@@ -79,12 +101,18 @@ export default function CatatPage({ setTab }) {
     setNominal("");
     setCatatan("");
     setTanggal(new Date().toISOString().split("T")[0]);
+    if (wallets && wallets.length > 0) {
+      setWalletId(wallets[0].id);
+      setFromWalletId(wallets[0].id);
+      const nextTo = wallets.find((w) => w.id !== wallets[0].id);
+      setToWalletId(nextTo ? nextTo.id : "");
+    }
 
     // reset kategori to sensible default after submit
-    if (categories && categories.length > 0) {
+    if (!isTransfer && categories && categories.length > 0) {
       const defaultList = categories.filter(c => c.type === (isIncome ? "Income" : "Needs"));
       setKategori(defaultList.length > 0 ? defaultList[0].name : categories[0].name);
-    } else {
+    } else if (!isTransfer) {
       setKategori("Lainnya");
     }
 
@@ -119,6 +147,19 @@ export default function CatatPage({ setTab }) {
       setKategori(found || categories[0].name);
     }
   }, [categories, jenis]);
+
+  useEffect(() => {
+    if (!wallets || wallets.length === 0) return;
+    const firstWalletId = wallets[0].id;
+    if (!walletId) setWalletId(firstWalletId);
+    if (!fromWalletId) setFromWalletId(firstWalletId);
+    if (!toWalletId || toWalletId === firstWalletId) {
+      const nextTo = wallets.find((w) => w.id !== firstWalletId);
+      setToWalletId(nextTo ? nextTo.id : "");
+    }
+  }, [wallets, walletId, fromWalletId, toWalletId]);
+
+  const availableToWallets = wallets.filter((w) => w.id !== fromWalletId);
 
   return (
     <div className="px-4 md:px-8 pt-4 md:pt-6 pb-6 max-w-[800px] mx-auto space-y-5">
@@ -221,7 +262,73 @@ export default function CatatPage({ setTab }) {
         <div className="flex bg-surface-dim rounded-xl p-1 border border-outline-variant/30">
           <button onClick={() => setJenis("Pengeluaran")} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${jenis === "Pengeluaran" ? "bg-surface-container-high text-on-surface shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}>Pengeluaran</button>
           <button onClick={() => setJenis("Pemasukan")} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${jenis === "Pemasukan" ? "bg-emerald-500/20 text-emerald-400 shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}>Pemasukan Tambahan</button>
+          <button onClick={() => setJenis("Transfer")} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${jenis === "Transfer" ? "bg-primary/20 text-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}>Transfer</button>
         </div>
+
+        {/* Wallet selector for expense/income */}
+        {(jenis === "Pengeluaran" || jenis === "Pemasukan") && (
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
+              Pilih Dompet / Rekening
+            </label>
+            <select
+              value={walletId}
+              onChange={(e) => setWalletId(e.target.value)}
+              className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl px-4 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all appearance-none"
+            >
+              {wallets.map((wallet) => (
+                <option key={wallet.id} value={wallet.id}>
+                  {wallet.icon || "👛"} {wallet.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Transfer-only fields */}
+        {jenis === "Transfer" && (
+          <>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
+                Dari Dompet
+              </label>
+              <select
+                value={fromWalletId}
+                onChange={(e) => {
+                  const nextFrom = e.target.value;
+                  setFromWalletId(nextFrom);
+                  if (nextFrom === toWalletId) {
+                    const fallback = wallets.find((w) => w.id !== nextFrom);
+                    setToWalletId(fallback ? fallback.id : "");
+                  }
+                }}
+                className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl px-4 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all appearance-none"
+              >
+                {wallets.map((wallet) => (
+                  <option key={wallet.id} value={wallet.id}>
+                    {wallet.icon || "👛"} {wallet.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
+                Ke Dompet
+              </label>
+              <select
+                value={toWalletId}
+                onChange={(e) => setToWalletId(e.target.value)}
+                className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl px-4 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all appearance-none"
+              >
+                {availableToWallets.map((wallet) => (
+                  <option key={wallet.id} value={wallet.id}>
+                    {wallet.icon || "👛"} {wallet.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
 
         {/* Tanggal Transaksi */}
         <div>
@@ -324,7 +431,7 @@ export default function CatatPage({ setTab }) {
         >
           {manLoading
             ? <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z"/></svg>Menyimpan...</>
-            : <><Icon name="save" sizeClass="text-[18px]" />{jenis === "Pemasukan" ? "Simpan Pemasukan" : "Simpan Pengeluaran"}</>
+            : <><Icon name="save" sizeClass="text-[18px]" />{jenis === "Pemasukan" ? "Simpan Pemasukan" : (jenis === "Transfer" ? "Simpan Transfer" : "Simpan Pengeluaran")}</>
           }
         </button>
       </section>

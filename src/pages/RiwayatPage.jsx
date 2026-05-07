@@ -15,7 +15,14 @@ export default function RiwayatPage({ setTab }) {
   const [confirmId,  setConfirmId]  = useState(null);
   const [editingTx,  setEditingTx]  = useState(null);
 
-  const CATS = [ALL, ...categories.map(c => c.name)];
+  const CAT_OPTIONS = [
+    { key: "all", value: ALL, label: "✨ Semua" },
+    ...categories.map((c, index) => ({
+      key: c.id || `${c.name}-${index}`,
+      value: c.name,
+      label: c.name,
+    })),
+  ];
 
   // ── Filter ────────────────────────────────────────────────────────────────
   const filtered = useMemo(() => transactions.filter(tx => {
@@ -82,18 +89,18 @@ export default function RiwayatPage({ setTab }) {
 
       {/* Filter chips — horizontal scroll */}
       <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-        {CATS.map(kat => {
-          const isActive = filterKat === kat;
-          const m = kat !== ALL ? getMeta(kat, categories) : null;
+        {CAT_OPTIONS.map((catOpt) => {
+          const isActive = filterKat === catOpt.value;
+          const m = catOpt.value !== ALL ? getMeta(catOpt.value, categories) : null;
           return (
-            <button key={kat} onClick={() => setFilterKat(kat)}
+            <button key={catOpt.key} onClick={() => setFilterKat(catOpt.value)}
               className={`flex-shrink-0 flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full transition-all border ${
                 isActive
                   ? "bg-emerald-500 text-slate-900 border-emerald-500"
                   : "bg-surface-container/60 text-on-surface-variant border-outline-variant/30 hover:border-outline-variant/60 hover:text-on-surface"
               }`}>
               {m && <Icon name={m.icon} className={`${isActive ? "" : m.color}`} sizeClass="text-[12px]" />}
-              {kat === ALL ? "✨ Semua" : kat}
+              {catOpt.label}
             </button>
           );
         })}

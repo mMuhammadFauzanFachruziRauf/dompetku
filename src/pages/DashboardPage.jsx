@@ -204,7 +204,21 @@ function BudgetRings({ byCategory, income, categories }) {
 
 export default function DashboardPage({ setTab }) {
   const { user } = useAuth();
-  const { transactions, categories, loading, income, hasOnboarded, totalSpent, remaining, pct, byCategory, selectedDate, updateCurrentMonthSalary } = useTransaction();
+  const {
+    transactions,
+    categories,
+    loading,
+    income,
+    hasOnboarded,
+    totalSpent,
+    remaining,
+    pct,
+    byCategory,
+    selectedDate,
+    updateCurrentMonthSalary,
+    wallets,
+    walletBalances,
+  } = useTransaction();
 
   const name = user?.user_metadata?.full_name?.split(" ")[0] || "Kamu";
   const now  = new Date();
@@ -335,6 +349,38 @@ export default function DashboardPage({ setTab }) {
               ))}
             </div>
           </div>
+        </section>
+
+        <section className="lg:col-span-12 glass-card p-6">
+          <h3 className="text-base font-bold text-on-surface mb-4">Saldo Dompet</h3>
+          {wallets.length === 0 ? (
+            <p className="text-sm text-on-surface-variant">Belum ada dompet.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {wallets.map((wallet) => {
+                const balance = walletBalances?.[wallet.id]?.balance ?? Number(wallet.starting_balance || 0);
+                return (
+                  <div
+                    key={wallet.id}
+                    className="p-4 rounded-xl bg-surface-dim border border-outline-variant/30 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-lg">
+                        {wallet.icon || "👛"}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-on-surface">{wallet.name}</p>
+                        <p className="text-xs text-on-surface-variant">Saldo saat ini</p>
+                      </div>
+                    </div>
+                    <p className={`text-sm font-bold ${balance < 0 ? "text-error" : "text-secondary"}`}>
+                      {formatRupiah(balance, true)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
       </div>
