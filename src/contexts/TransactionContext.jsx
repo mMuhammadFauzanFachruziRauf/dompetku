@@ -351,6 +351,21 @@ export function TransactionProvider({ children }) {
     [monthlySalaries, selectedMonthKey]
   );
   const income = currentMonthSalaryInfo.amount;
+  const categoryTypeByName = useMemo(() => {
+    const map = {};
+    for (const category of categories) {
+      map[category.name] = category.type;
+    }
+    return map;
+  }, [categories]);
+
+  const resolveTransactionType = useCallback((tx) => {
+    if (tx?.jenis) return tx.jenis;
+    const categoryType = categoryTypeByName[tx?.kategori];
+    if (categoryType === "Income") return "pemasukan";
+    if (categoryType) return "pengeluaran";
+    return Number(tx?.nominal || 0) < 0 ? "pemasukan" : "pengeluaran";
+  }, [categoryTypeByName]);
 
   const updateCurrentMonthSalary = async (newAmount, newNote = "", setOnboarded = false) => {
     if (!user) return { error: "Belum login" };
@@ -499,18 +514,25 @@ export function TransactionProvider({ children }) {
 
   // ── Computed values ──────────────────────────────────────────────────────
   const totalSpent = transactions
-    .filter((t) => (t.jenis ? t.jenis === "pengeluaran" : t.nominal > 0))
+    .filter((t) => resolveTransactionType(t) === "pengeluaran")
     .reduce((s, t) => s + Math.abs(Number(t.nominal || 0)), 0);
   const totalIncomeTx = transactions
-    .filter((t) => (t.jenis ? t.jenis === "pemasukan" : t.nominal < 0))
+    .filter((t) => resolveTransactionType(t) === "pemasukan")
     .reduce((s, t) => s + Math.abs(Number(t.nominal || 0)), 0);
   const remaining = income + totalIncomeTx - totalSpent;
-  const totalIncomeAll = income + totalIncomeTx;
-  const pct = totalIncomeAll > 0
-    ? Math.max(0, Math.min(Math.round((totalSpent / totalIncomeAll) * 100), 100))
+  const totalMonthlyIncome = income + totalIncomeTx;
+  const pct = totalMonthlyIncome > 0
+    ? Math.max(0, Math.min(Math.round((totalSpent / totalMonthlyIncome) * 100), 100))
     : 0;
 
   const byCategory = transactions
+    .filter((t) => resolveTransactionType(t) === "pengeluaran")
+    .reduce((acc, t) => {
+      acc[t.kategori] = (acc[t.kategori] || 0) + Math.abs(Number(t.nominal || 0));
+      return acc;
+    }, {});
+
+  const expenseByCategory = transactions
     .filter((t) => t.jenis === "pengeluaran")
     .reduce((acc, t) => {
       acc[t.kategori] = (acc[t.kategori] || 0) + Math.abs(Number(t.nominal || 0));
@@ -580,6 +602,7 @@ export function TransactionProvider({ children }) {
     remaining,
     pct,
     byCategory,
+    expenseByCategory,
     addTransaction,
     updateTransaction,
     deleteTransaction,

@@ -214,6 +214,7 @@ export default function DashboardPage({ setTab }) {
     remaining,
     pct,
     byCategory,
+    expenseByCategory,
     selectedDate,
     updateCurrentMonthSalary,
     wallets,
@@ -332,7 +333,7 @@ export default function DashboardPage({ setTab }) {
         <section className="lg:col-span-12 glass-card p-6">
           <h3 className="text-base font-bold text-on-surface mb-5">Pengeluaran per Kategori</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <CategoryBars byCategory={byCategory} totalSpent={totalSpent} categories={categories}/>
+            <CategoryBars byCategory={expenseByCategory} totalSpent={totalSpent} categories={categories}/>
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-widest">Aksi Cepat</p>
               {[
