@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTransaction }    from "../contexts/TransactionContext";
 import { formatRupiah, getMeta, formatDate } from "../utils/helpers";
 import Icon from "../components/ui/Icon";
@@ -8,12 +8,17 @@ import EditTransactionModal  from "../components/EditTransactionModal";
 const ALL = "Semua";
 
 export default function RiwayatPage({ setTab }) {
-  const { transactions, categories, loading, deleteTransaction } = useTransaction();
+  const { transactions, transactionsRevision, categories, loading, deleteTransaction } = useTransaction();
   const [filterKat, setFilterKat] = useState(ALL);
   const [search,    setSearch]    = useState("");
   const [deletingId, setDeletingId] = useState(null);
   const [confirmId,  setConfirmId]  = useState(null);
   const [editingTx,  setEditingTx]  = useState(null);
+  const [displayTransactions, setDisplayTransactions] = useState([]);
+
+  useEffect(() => {
+    setDisplayTransactions(transactions.map((tx) => ({ ...tx })));
+  }, [transactions, transactionsRevision]);
 
   const CAT_OPTIONS = [
     { key: "all", value: ALL, label: "✨ Semua" },
@@ -25,12 +30,12 @@ export default function RiwayatPage({ setTab }) {
   ];
 
   // ── Filter ────────────────────────────────────────────────────────────────
-  const filtered = useMemo(() => transactions.filter(tx => {
+  const filtered = useMemo(() => displayTransactions.filter(tx => {
     const matchKat = filterKat === ALL || tx.kategori === filterKat;
     const matchSearch = !search || [tx.catatan, tx.kategori].join(" ")
       .toLowerCase().includes(search.toLowerCase());
     return matchKat && matchSearch;
-  }), [transactions, filterKat, search]);
+  }), [displayTransactions, filterKat, search]);
 
   const totalFilteredExpense = filtered.filter(t => t.nominal > 0).reduce((s,t) => s + t.nominal, 0);
 

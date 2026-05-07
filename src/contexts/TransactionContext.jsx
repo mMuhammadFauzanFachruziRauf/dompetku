@@ -42,6 +42,7 @@ export function TransactionProvider({ children }) {
   const isInjecting = useRef(false);
   const isInjectingWallet = useRef(false);
   const [transactions, setTransactions] = useState([]);
+  const [transactionsRevision, setTransactionsRevision] = useState(0);
   const [allTransactions, setAllTransactions] = useState([]);
   const [wallets, setWallets] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -71,7 +72,8 @@ export function TransactionProvider({ children }) {
       .order("tanggal", { ascending: false });
 
     if (err) { setError(err.message); setLoading(false); return; }
-    setTransactions(data ?? []);
+    setTransactions(Array.isArray(data) ? [...data] : []);
+    setTransactionsRevision((r) => r + 1);
     setLoading(false);
   }, [user, selectedDate]);
 
@@ -298,6 +300,7 @@ export function TransactionProvider({ children }) {
       fetchData();
     } else {
       setTransactions([]);
+      setTransactionsRevision((r) => r + 1);
       setAllTransactions([]);
       setWallets([]);
       setCategories([]);
@@ -462,9 +465,25 @@ export function TransactionProvider({ children }) {
     to_wallet_id,
   }) => {
     if (!user) return { error: "Belum login" };
-    
+
+    const resolvedJenis = typeof jenis === "string"
+      ? jenis.toLowerCase()
+      : (Number(nominal) < 0 ? "pemasukan" : "pengeluaran");
+    const nominalAbs = Math.abs(Number(nominal || 0));
+    if ((resolvedJenis === "pengeluaran" || resolvedJenis === "transfer") && wallet_id) {
+      const walletBalance = Number(
+        walletBalances?.[wallet_id]?.balance ??
+        wallets.find((w) => w.id === wallet_id)?.starting_balance ??
+        0
+      );
+      if (nominalAbs > walletBalance) {
+        const message = "Saldo tidak mencukupi di dompet ini!";
+        return { success: false, message, error: message };
+      }
+    }
+
     const payload = { user_id: user.id, nominal, kategori, catatan };
-    if (jenis) payload.jenis = jenis;
+    if (resolvedJenis) payload.jenis = resolvedJenis;
     if (wallet_id) payload.wallet_id = wallet_id;
     if (to_wallet_id) payload.to_wallet_id = to_wallet_id;
     if (tanggal) {
@@ -485,7 +504,10 @@ export function TransactionProvider({ children }) {
       txDate.getFullYear() === selectedDate.getFullYear() &&
       txDate.getMonth() === selectedDate.getMonth()
     ) {
-      setTransactions((prev) => [...prev, data].sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal)));
+      setTransactions((prev) =>
+        [...prev, data].sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
+      );
+      setTransactionsRevision((r) => r + 1);
     }
     setAllTransactions((prev) => [...prev, data].sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal)));
     return { data };
@@ -493,16 +515,81 @@ export function TransactionProvider({ children }) {
 
   const updateTransaction = async (id, updatedData) => {
     if (!user) return { error: "Belum login" };
-    const { error: err } = await supabase
+
+    // Create clean payload - only include fields that are actually being updated
+    const cleanPayload = {};
+    if (updatedData.nominal !== undefined) {
+      const parsedNominal = Number(updatedData.nominal);
+      if (!Number.isFinite(parsedNominal)) return { error: "Nominal tidak valid" };
+      cleanPayload.nominal = parsedNominal;
+    }
+    if (updatedData.kategori !== undefined) cleanPayload.kategori = updatedData.kategori;
+    if (updatedData.catatan !== undefined) cleanPayload.catatan = updatedData.catatan;
+    if (updatedData.jenis !== undefined) cleanPayload.jenis = updatedData.jenis;
+    if (updatedData.wallet_id !== undefined) cleanPayload.wallet_id = updatedData.wallet_id;
+    if (updatedData.to_wallet_id !== undefined) cleanPayload.to_wallet_id = updatedData.to_wallet_id;
+    if (updatedData.tanggal !== undefined) cleanPayload.tanggal = updatedData.tanggal;
+
+    // Fix nominal sign logic - expenses should be positive (displayed as -), income should be negative (displayed as +)
+    const effectiveJenis = (cleanPayload.jenis ?? updatedData.jenis ?? "").toLowerCase();
+    if (cleanPayload.nominal !== undefined && effectiveJenis) {
+      const abs = Math.abs(cleanPayload.nominal);
+      if (effectiveJenis === "pemasukan") {
+        cleanPayload.nominal = -abs; // Income stored as negative (displays as +)
+      } else if (effectiveJenis === "pengeluaran") {
+        cleanPayload.nominal = abs; // Expenses stored as positive (displays as -)
+      } else if (effectiveJenis === "transfer") {
+        cleanPayload.nominal = abs; // Transfers stored as positive
+      }
+    }
+
+    const txIdStr = String(id);
+    console.log("Updating TX ID:", id, "with payload:", cleanPayload);
+    console.log("ID type:", typeof id, "ID value:", id);
+    console.log("Payload being sent:", cleanPayload);
+    console.log("Current user ID:", user.id);
+
+    // Add user_id explicitly to handle RLS policies
+    const { data, error } = await supabase
       .from("transactions")
-      .update(updatedData)
+      .update(cleanPayload)
       .eq("id", id)
-      .eq("user_id", user.id);
-    if (err) return { error: err.message };
-    setTransactions((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...updatedData } : t))
-    );
-    return { success: true };
+      .eq("user_id", user.id)
+      .select();
+    
+    console.log("Supabase error if any:", error);
+    console.log("Supabase response data:", data);
+    console.log("Rows affected:", data?.length || 0);
+    
+    if (error) return { error: error.message };
+
+    // Check if any rows were actually updated
+    if (!data || data.length === 0) {
+      console.log("No rows were updated - possible RLS policy blocking or ID mismatch");
+      return { error: "Transaksi tidak ditemukan atau tidak memiliki izin untuk diubah" };
+    }
+
+    // Use the actual updated data from Supabase response
+    const updatedTransaction = data[0];
+    
+    setTransactions((prev) => {
+      const updated = prev.map((t) => (String(t.id) === txIdStr ? updatedTransaction : t));
+      return [...updated]; // Ensure new array reference
+    });
+    setAllTransactions((prev) => {
+      const updated = prev.map((t) => (String(t.id) === txIdStr ? updatedTransaction : t));
+      return [...updated]; // Ensure new array reference
+    });
+    setTransactionsRevision((r) => r + 1);
+
+    // Refresh both current month transactions and all-time list for wallet balances to ensure consistency
+    // Note: These fetches will get the latest data from server and update state again
+    await fetchTransactions();
+    await fetchAllTransactionsForBalances();
+
+    const result = { success: true, data: updatedTransaction };
+    console.log("Update response success:", result);
+    return result;
   };
 
   const deleteTransaction = async (id) => {
@@ -512,7 +599,9 @@ export function TransactionProvider({ children }) {
       .eq("id", id)
       .eq("user_id", user.id);
     if (err) return { error: err.message };
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
+    setTransactions((prev) => [...prev.filter((t) => String(t.id) !== String(id))]);
+    setAllTransactions((prev) => [...prev.filter((t) => String(t.id) !== String(id))]);
+    setTransactionsRevision((r) => r + 1);
     return { success: true };
   };
 
@@ -593,6 +682,7 @@ export function TransactionProvider({ children }) {
 
   const value = {
     transactions,
+    transactionsRevision,
     allTransactions,
     wallets,
     setWallets,

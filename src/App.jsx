@@ -32,22 +32,36 @@ function LoadingScreen() {
 
 // ── Main App Shell — mengelola tab & render halaman ────────────────────────────
 function ProtectedApp() {
-  const [tab, setTab] = useState("dashboard");
+  // Get saved tab from localStorage or default to dashboard
+  const getInitialTab = () => {
+    const saved = localStorage.getItem('activePage');
+    return saved && ['dashboard', 'catat', 'budget', 'riwayat', 'statistik', 'kategori'].includes(saved) 
+      ? saved 
+      : 'dashboard';
+  };
+  
+  const [tab, setTab] = useState(getInitialTab);
+
+  // Save tab to localStorage whenever it changes
+  const handleTabChange = (newTab) => {
+    setTab(newTab);
+    localStorage.setItem('activePage', newTab);
+  };
 
   const renderPage = () => {
     switch (tab) {
-      case "dashboard":  return <DashboardPage  setTab={setTab} />;
-      case "catat":      return <CatatPage       setTab={setTab} />;
-      case "budget":     return <BudgetPage      setTab={setTab} />;
-      case "riwayat":    return <RiwayatPage     setTab={setTab} />;
-      case "statistik":  return <StatistikPage   setTab={setTab} />;
-      case "kategori":   return <KategoriPage    setTab={setTab} />;
-      default:           return <DashboardPage  setTab={setTab} />;
+      case "dashboard":  return <DashboardPage  setTab={handleTabChange} />;
+      case "catat":      return <CatatPage       setTab={handleTabChange} />;
+      case "budget":     return <BudgetPage      setTab={handleTabChange} />;
+      case "riwayat":    return <RiwayatPage     setTab={handleTabChange} />;
+      case "statistik":  return <StatistikPage   setTab={handleTabChange} />;
+      case "kategori":   return <KategoriPage    setTab={handleTabChange} />;
+      default:           return <DashboardPage  setTab={handleTabChange} />;
     }
   };
 
   return (
-    <AppLayout tab={tab} setTab={setTab}>
+    <AppLayout tab={tab} setTab={handleTabChange}>
       {renderPage()}
     </AppLayout>
   );

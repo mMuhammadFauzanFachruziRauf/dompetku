@@ -4,7 +4,7 @@ import { parseSmartInput, getMeta, formatRupiah } from "../utils/helpers";
 import Icon from "../components/ui/Icon";
 
 export default function CatatPage({ setTab }) {
-  const { addTransaction, categories, shortcuts, wallets } = useTransaction();
+  const { addTransaction, categories, shortcuts, wallets, walletBalances } = useTransaction();
 
   // Smart input state
   const [smartText,    setSmartText]    = useState("");
@@ -52,6 +52,7 @@ export default function CatatPage({ setTab }) {
   const handleManualSubmit = async () => {
     const nom = parseFloat(String(nominal).replace(/\./g,"").replace(/,/g,""));
     if (!nom || nom <= 0) { showToast("❌ Nominal harus diisi dan lebih dari 0", false); return; }
+    if (isInsufficientBalance) { showToast("❌ Saldo tidak mencukupi di dompet ini!", false); return; }
     if (jenis === "Transfer") {
       if (!fromWalletId || !toWalletId) {
         showToast("❌ Pilih dompet asal dan tujuan terlebih dahulu", false);
@@ -163,6 +164,13 @@ export default function CatatPage({ setTab }) {
   const selectedWallet = wallets.find((w) => w.id === walletId);
   const selectedFromWallet = wallets.find((w) => w.id === fromWalletId);
   const selectedToWallet = wallets.find((w) => w.id === toWalletId);
+  const parsedNominal = parseFloat(String(nominal).replace(/\./g, "").replace(/,/g, "")) || 0;
+  const sourceWallet = jenis === "Transfer" ? selectedFromWallet : selectedWallet;
+  const sourceWalletBalance = sourceWallet
+    ? Number(walletBalances?.[sourceWallet.id]?.balance ?? sourceWallet.starting_balance ?? 0)
+    : 0;
+  const needsBalanceValidation = jenis === "Pengeluaran" || jenis === "Transfer";
+  const isInsufficientBalance = needsBalanceValidation && parsedNominal > 0 && parsedNominal > sourceWalletBalance;
 
   return (
     <div className="px-4 md:px-8 pt-4 md:pt-6 pb-6 max-w-[800px] mx-auto space-y-5">
@@ -391,6 +399,11 @@ export default function CatatPage({ setTab }) {
               className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl pl-11 pr-4 py-3.5 text-on-surface text-base font-semibold focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all placeholder:text-on-surface-variant/40 placeholder:font-normal"
             />
           </div>
+          {isInsufficientBalance && sourceWallet && (
+            <p className="mt-2 text-xs text-error font-semibold">
+              ⚠️ Saldo {sourceWallet.name} tidak mencukupi (Tersisa: {formatRupiah(sourceWalletBalance, true)})
+            </p>
+          )}
         </div>
 
         {/* Kategori: show for both Pengeluaran and Pemasukan, but filtered by type */}
@@ -453,8 +466,8 @@ export default function CatatPage({ setTab }) {
         {/* Submit */}
         <button
           onClick={handleManualSubmit}
-          disabled={manLoading}
-          className="w-full bg-emerald-500 text-slate-900 font-bold py-4 rounded-xl hover:bg-emerald-400 disabled:opacity-50 transition-all active:scale-[0.98] text-sm flex items-center justify-center gap-2"
+          disabled={manLoading || isInsufficientBalance}
+          className="w-full bg-emerald-500 text-slate-900 font-bold py-4 rounded-xl hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] text-sm flex items-center justify-center gap-2"
         >
           {manLoading
             ? <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z"/></svg>Menyimpan...</>
