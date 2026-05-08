@@ -381,7 +381,7 @@ export default function DashboardPage({ setTab }) {
                       </div>
                     </div>
                     <p className={`text-sm font-bold ${balance < 0 ? "text-error" : "text-secondary"}`}>
-                      {formatRupiah(balance, true)}
+                      {formatRupiah(balance)}
                     </p>
                   </div>
                 );

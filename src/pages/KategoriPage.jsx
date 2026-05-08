@@ -7,6 +7,7 @@ export default function KategoriPage({ setTab }) {
   const {
     categories,
     wallets,
+    walletBalances,
     addCategory,
     updateCategory,
     deleteCategory,
@@ -255,8 +256,11 @@ export default function KategoriPage({ setTab }) {
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-on-surface truncate">{wallet.name}</p>
+                        <p className="text-xs font-semibold text-emerald-400 mt-0.5">
+                          Saldo Saat Ini: Rp {Number(walletBalances?.[wallet.id]?.balance || 0).toLocaleString("id-ID")}
+                        </p>
                         <p className="text-[10px] text-on-surface-variant truncate opacity-70 mt-0.5">
-                          Saldo awal: {Number(wallet.starting_balance || 0).toLocaleString("id-ID")}
+                          (Saldo Awal: Rp {Number(wallet.starting_balance || 0).toLocaleString("id-ID")})
                         </p>
                       </div>
                     </div>
