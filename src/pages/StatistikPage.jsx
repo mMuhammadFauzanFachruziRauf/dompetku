@@ -2,6 +2,21 @@ import { useMemo } from "react";
 import { useTransaction } from "../contexts/TransactionContext";
 import { formatRupiah, getMeta } from "../utils/helpers";
 import Icon from "../components/ui/Icon";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+// Custom Tooltip component to prevent crashes
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-gray-800 border border-gray-700 p-3 rounded-lg shadow-lg">
+        <p className="text-gray-300 text-sm mb-1">{data.formattedDate || `Tanggal ${label}`}</p>
+        <p className="text-emerald-400 font-semibold">{formatRupiah(data.amount)}</p>
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function StatistikPage() {
   const { transactions, categories, loading, income, totalSpent, remaining, byCategory } = useTransaction();
@@ -16,11 +31,11 @@ export default function StatistikPage() {
 
   const maxVal = top5[0]?.[1] || 1;
 
-  // Daily spending this month (expenses only)
-  const dailyMap = useMemo(() => {
+  // Daily spending this month (expenses only) - enhanced for line chart
+  const dailySpendingData = useMemo(() => {
     const map = {};
     transactions.forEach(tx => {
-      if (tx.nominal > 0) {
+      if (tx.nominal > 0) { // expenses only
         const d = new Date(tx.tanggal).getDate();
         map[d] = (map[d] || 0) + tx.nominal;
       }
@@ -30,7 +45,16 @@ export default function StatistikPage() {
 
   const today     = new Date().getDate();
   const days      = Array.from({length: today}, (_, i) => i + 1);
-  const maxDaily  = Math.max(...days.map(d => dailyMap[d] || 0), 1);
+  const maxDaily  = Math.max(...days.map(d => dailySpendingData[d] || 0), 1);
+
+  // Create complete daily data array for line chart
+  const dailyChartData = useMemo(() => {
+    return days.map(day => ({
+      date: day,
+      amount: dailySpendingData[day] || 0,
+      formattedDate: new Date(new Date().getFullYear(), new Date().getMonth(), day).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+    }));
+  }, [dailySpendingData, today]);
 
   if (loading) return (
     <div className="flex justify-center items-center h-64">
@@ -123,40 +147,40 @@ export default function StatistikPage() {
         )}
       </section>
 
-      {/* Daily spending bar chart */}
+      {/* Daily spending trend chart */}
       <section className="glass-card p-6">
-        <h3 className="text-sm font-bold text-on-surface mb-5">Pengeluaran Harian (Bulan Ini)</h3>
+        <h3 className="text-sm font-bold text-on-surface mb-5">Tren Pengeluaran Harian (Bulan Ini)</h3>
         {transactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-24 text-on-surface-variant">
+          <div className="flex flex-col items-center justify-center h-32 text-on-surface-variant">
             <Icon name="show_chart" sizeClass="text-[32px] mb-2" />
             <p className="text-sm">Belum ada data</p>
           </div>
         ) : (
-          <div className="flex items-end gap-1 h-32 overflow-x-auto no-scrollbar pb-6 relative">
-            {days.map(d => {
-              const val = dailyMap[d] || 0;
-              const h   = val > 0 ? Math.max((val / maxDaily) * 100, 8) : 0;
-              const isToday = d === today;
-              return (
-                <div key={d} className="flex flex-col items-center gap-1 flex-shrink-0" style={{minWidth: days.length > 20 ? 16 : 24}}>
-                  <div className="w-full flex items-end justify-center" style={{height: 100}}>
-                    <div
-                      className="w-full rounded-t-sm transition-all duration-500"
-                      style={{
-                        height: val > 0 ? `${h}%` : "2px",
-                        background: isToday ? "#4edea3" : val > 0 ? "#45464d" : "#1f1f21",
-                        minHeight: val > 0 ? 4 : 2,
-                      }}
-                    />
-                  </div>
-                  <span className={`text-[9px] ${isToday ? "text-secondary font-bold" : "text-on-surface-variant/40"}`}>
-                    {d}
-                  </span>
-                </div>
-              );
-            })}
-            {/* Zero line */}
-            <div className="absolute bottom-6 left-0 right-0 h-px bg-outline-variant/20 pointer-events-none"/>
+          <div className="h-64 w-full mt-4">
+            <ResponsiveContainer width="99%" height="100%" minHeight={250}>
+              <LineChart data={dailyChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
+                <XAxis 
+                  dataKey="formattedDate" 
+                  stroke="#9ca3af" 
+                  tick={{ fontSize: 10 }}
+                  tickFormatter={(value) => value.split(' ')[0]}
+                />
+                <YAxis 
+                  hide 
+                  stroke="#9ca3af"
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Line 
+                  type="monotone" 
+                  dataKey="amount" 
+                  stroke="#4edea3" 
+                  strokeWidth={2}
+                  dot={{ fill: '#4edea3', strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         )}
       </section>
