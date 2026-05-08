@@ -225,6 +225,7 @@ export default function DashboardPage({ setTab }) {
     updateCurrentMonthSalary,
     wallets,
     walletBalances,
+    getBudgetProgress,
   } = useTransaction();
 
   const name = user?.user_metadata?.full_name?.split(" ")[0] || "Kamu";
@@ -269,7 +270,63 @@ export default function DashboardPage({ setTab }) {
           value={formatRupiah(avgPerDay, true)} color="text-on-surface" sub="pengeluaran harian"/>
       </div>
 
-      {/* Bento grid */}
+      {/* Budget Alerts */}
+        {(() => {
+          const budgetProgress = getBudgetProgress();
+          const alerts = budgetProgress.filter(item => item.percentage >= 70);
+          
+          if (alerts.length === 0) return null;
+          
+          return (
+            <section className="lg:col-span-12 glass-card p-6 space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Icon name="warning" sizeClass="text-[20px] text-orange-400" />
+                <h3 className="text-base font-bold text-on-surface">Peringatan Budget</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {alerts.map((item, idx) => {
+                  const isDanger = item.percentage >= 100;
+                  const meta = getMeta(item.category, categories);
+                  
+                  return (
+                    <div key={idx} className={`p-4 rounded-xl border ${
+                      isDanger 
+                        ? 'bg-error/10 border-error/30' 
+                        : 'bg-orange-500/10 border-orange-500/30'
+                    }`}>
+                      <div className="flex items-start gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          isDanger ? 'bg-error' : 'bg-orange-500'
+                        }`}>
+                          <Icon 
+                            name={isDanger ? 'error' : 'warning'} 
+                            sizeClass="text-[16px] text-white" 
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-bold ${
+                            isDanger ? 'text-error' : 'text-orange-400'
+                          }`}>
+                            {isDanger ? 'OVERBUDGET' : 'Hampir Habis'}
+                          </p>
+                          <p className="text-xs text-on-surface-variant mt-1">
+                            {item.category}: {isDanger 
+                              ? `Lebih Rp ${formatRupiah(Math.abs(item.remaining))}` 
+                              : `Sisa Rp ${formatRupiah(item.remaining)}`
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })()}
+
+        {/* Bento grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
         {/* Donut + 50/30/20 */}
@@ -346,6 +403,10 @@ export default function DashboardPage({ setTab }) {
                 {label:"Catat pengeluaran baru", icon:"add_circle",  color:"text-secondary", action:()=>setTab("catat")},
                 {label:"Lihat semua riwayat",    icon:"receipt_long",color:"text-primary",   action:()=>setTab("riwayat")},
                 {label:"Lihat statistik",         icon:"bar_chart",   color:"text-tertiary",  action:()=>setTab("statistik")},
+                {label:"Pindah Saldo (Transfer)", icon:"swap_horiz", color:"text-primary", action:()=>{
+                localStorage.setItem('openTransferTab', 'true');
+                setTab('catat');
+              }},
               ].map(item => (
                 <button key={item.label} onClick={item.action}
                   className="flex items-center gap-3 p-3 rounded-xl bg-surface-dim border border-outline-variant/20 hover:border-outline-variant/60 hover:bg-surface-container-high transition-all text-left">

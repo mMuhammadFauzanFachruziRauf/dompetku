@@ -2,8 +2,10 @@ import { useState, useEffect } from "react";
 import { useTransaction } from "../contexts/TransactionContext";
 import { parseSmartInput, getMeta, formatRupiah } from "../utils/helpers";
 import Icon from "../components/ui/Icon";
+import { useSearchParams } from "react-router-dom";
 
 export default function CatatPage({ setTab }) {
+  const [searchParams] = useSearchParams();
   const { addTransaction, categories, shortcuts, wallets, walletBalances } = useTransaction();
 
   // Smart input state
@@ -172,6 +174,24 @@ export default function CatatPage({ setTab }) {
   const needsBalanceValidation = jenis === "Pengeluaran" || jenis === "Transfer";
   const isInsufficientBalance = needsBalanceValidation && parsedNominal > 0 && parsedNominal > sourceWalletBalance;
 
+  // Handle localStorage flag for auto-opening Transfer tab
+  useEffect(() => {
+    // Check for localStorage flag (from Dashboard quick action)
+    if (localStorage.getItem('openTransferTab') === 'true') {
+      setJenis('Transfer');
+      localStorage.removeItem('openTransferTab'); // clean up immediately
+      return;
+    }
+    
+    // Fallback to URL parameter for direct links
+    if (searchParams.get('transfer') === 'true') {
+      setJenis('Transfer');
+      // Clean up the URL parameter
+      searchParams.delete('transfer');
+      window.history.replaceState(null, '', `?${searchParams.toString()}`);
+    }
+  }, [searchParams]);
+
   return (
     <div className="px-4 md:px-8 pt-4 md:pt-6 pb-6 max-w-[800px] mx-auto space-y-5">
       {/* Toast */}
@@ -269,11 +289,41 @@ export default function CatatPage({ setTab }) {
           <h3 className="text-sm font-bold text-on-surface">Form Manual</h3>
         </div>
 
-        {/* Toggle Jenis */}
-        <div className="flex bg-surface-dim rounded-xl p-1 border border-outline-variant/30">
-          <button onClick={() => setJenis("Pengeluaran")} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${jenis === "Pengeluaran" ? "bg-surface-container-high text-on-surface shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}>Pengeluaran</button>
-          <button onClick={() => setJenis("Pemasukan")} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${jenis === "Pemasukan" ? "bg-emerald-500/20 text-emerald-400 shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}>Pemasukan Tambahan</button>
-          <button onClick={() => setJenis("Transfer")} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${jenis === "Transfer" ? "bg-primary/20 text-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}>Transfer</button>
+        {/* Primary Action Tabs */}
+        <div className="grid grid-cols-3 gap-3">
+          <button 
+            onClick={() => setJenis("Pengeluaran")} 
+            className={`py-3 rounded-xl text-sm font-bold transition-all border-2 ${
+              jenis === "Pengeluaran" 
+                ? "bg-error text-white border-error shadow-lg" 
+                : "bg-surface-dim text-on-surface-variant border-outline-variant/30 hover:border-error/50 hover:text-error"
+            }`}
+          >
+            <Icon name="trending_down" sizeClass="text-[18px] mb-1" />
+            <div>Pengeluaran</div>
+          </button>
+          <button 
+            onClick={() => setJenis("Pemasukan")} 
+            className={`py-3 rounded-xl text-sm font-bold transition-all border-2 ${
+              jenis === "Pemasukan" 
+                ? "bg-emerald-500 text-white border-emerald-500 shadow-lg" 
+                : "bg-surface-dim text-on-surface-variant border-outline-variant/30 hover:border-emerald-500/50 hover:text-emerald-400"
+            }`}
+          >
+            <Icon name="add_circle" sizeClass="text-[18px] mb-1" />
+            <div>Pemasukan</div>
+          </button>
+          <button 
+            onClick={() => setJenis("Transfer")} 
+            className={`py-3 rounded-xl text-sm font-bold transition-all border-2 ${
+              jenis === "Transfer" 
+                ? "bg-primary text-white border-primary shadow-lg" 
+                : "bg-surface-dim text-on-surface-variant border-outline-variant/30 hover:border-primary/50 hover:text-primary"
+            }`}
+          >
+            <Icon name="swap_horiz" sizeClass="text-[18px] mb-1" />
+            <div>Transfer</div>
+          </button>
         </div>
 
         {/* Wallet selector for expense/income */}
@@ -306,10 +356,10 @@ export default function CatatPage({ setTab }) {
 
         {/* Transfer-only fields */}
         {jenis === "Transfer" && (
-          <>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
-                Dari Dompet
+          <div className="space-y-4">
+            <div className="bg-surface-dim rounded-xl p-4 border-2 border-primary/20">
+              <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-3">
+                Kirim Dari:
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">
@@ -325,7 +375,7 @@ export default function CatatPage({ setTab }) {
                       setToWalletId(fallback ? fallback.id : "");
                     }
                   }}
-                  className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl pl-11 pr-10 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all appearance-none"
+                  className="w-full bg-surface-container-high border border-outline-variant/50 rounded-xl pl-11 pr-10 py-3.5 text-on-surface text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all appearance-none"
                 >
                   {wallets.map((wallet) => (
                     <option key={wallet.id} value={wallet.id}>
@@ -338,9 +388,19 @@ export default function CatatPage({ setTab }) {
                 </span>
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
-                Ke Dompet
+
+            {/* Visual Flow Indicator */}
+            <div className="flex justify-center py-2">
+              <div className="flex items-center gap-2 text-primary">
+                <div className="w-8 h-0.5 bg-primary/60"></div>
+                <Icon name="arrow_downward" sizeClass="text-[24px]" />
+                <div className="w-8 h-0.5 bg-primary/60"></div>
+              </div>
+            </div>
+
+            <div className="bg-surface-dim rounded-xl p-4 border-2 border-emerald-500/20">
+              <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-3">
+                Terima Di:
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">
@@ -349,7 +409,7 @@ export default function CatatPage({ setTab }) {
                 <select
                   value={toWalletId}
                   onChange={(e) => setToWalletId(e.target.value)}
-                  className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl pl-11 pr-10 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all appearance-none"
+                  className="w-full bg-surface-container-high border border-outline-variant/50 rounded-xl pl-11 pr-10 py-3.5 text-on-surface text-sm font-medium focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-all appearance-none"
                 >
                   {availableToWallets.map((wallet) => (
                     <option key={wallet.id} value={wallet.id}>
@@ -362,7 +422,17 @@ export default function CatatPage({ setTab }) {
                 </span>
               </div>
             </div>
-          </>
+
+            {/* Self-transfer validation warning */}
+            {fromWalletId === toWalletId && (
+              <div className="p-3 bg-error/10 border border-error/30 rounded-xl">
+                <p className="text-xs text-error font-semibold flex items-center gap-2">
+                  <Icon name="error" sizeClass="text-[16px]" />
+                  Dompet asal dan tujuan tidak boleh sama
+                </p>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Tanggal Transaksi */}
@@ -466,7 +536,7 @@ export default function CatatPage({ setTab }) {
         {/* Submit */}
         <button
           onClick={handleManualSubmit}
-          disabled={manLoading || isInsufficientBalance}
+          disabled={manLoading || isInsufficientBalance || (jenis === "Transfer" && fromWalletId === toWalletId)}
           className="w-full bg-emerald-500 text-slate-900 font-bold py-4 rounded-xl hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] text-sm flex items-center justify-center gap-2"
         >
           {manLoading
