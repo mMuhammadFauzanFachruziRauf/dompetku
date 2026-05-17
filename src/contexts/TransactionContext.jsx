@@ -284,29 +284,33 @@ export function TransactionProvider({ children }) {
     return { success: true };
   };
 
-  const fetchData = useCallback(async () => {
-    if (!user) return;
-    await Promise.all([
-      fetchTransactions(),
-      fetchAllTransactionsForBalances(),
-      fetchProfile(),
-      fetchCategories(),
-      fetchWallets(),
-    ]);
-  }, [user, fetchTransactions, fetchAllTransactionsForBalances, fetchProfile, fetchCategories, fetchWallets]);
-
   useEffect(() => {
     if (user) {
-      fetchData();
+      // Directly call fetch functions to avoid stale closure issues
+      // Only depend on 'user' to trigger on login/logout
+      (async () => {
+        await Promise.all([
+          fetchTransactions(),
+          fetchAllTransactionsForBalances(),
+          fetchProfile(),
+          fetchCategories(),
+          fetchWallets(),
+        ]);
+      })();
     } else {
+      // Clear state when logged out
       setTransactions([]);
       setTransactionsRevision((r) => r + 1);
       setAllTransactions([]);
       setWallets([]);
       setCategories([]);
+      setMonthlySalaries({});
+      setHasOnboarded(false);
+      setShortcuts([]);
+      setCategoryBudgets({});
       setLoading(false);
     }
-  }, [user, fetchData]);
+  }, [user, fetchTransactions, fetchAllTransactionsForBalances, fetchProfile, fetchCategories, fetchWallets]);
 
   // ── Kategori CRUD ────────────────────────────────────────────────────────
   const addCategory = async (cat) => {
@@ -378,8 +382,17 @@ export function TransactionProvider({ children }) {
     const numericAmount = Number(newAmount);
     if (isNaN(numericAmount) || numericAmount < 0) return { error: "Nominal tidak valid" };
 
-    const nextMonthlySalaries = {
-      ...(monthlySalaries || {}),
+    // Fetch latest monthly_salaries from DB
+    const { data: profileData, error: fetchErr } = await supabase
+      .from("profiles")
+      .select("monthly_salaries")
+      .eq("id", user.id)
+      .single();
+    if (fetchErr) return { error: fetchErr.message };
+    const latestMonthlySalaries = profileData?.monthly_salaries || {};
+
+    const mergedMonthlySalaries = {
+      ...latestMonthlySalaries,
       [selectedMonthKey]: {
         amount: numericAmount,
         note: typeof newNote === "string" ? newNote : "",
@@ -388,7 +401,7 @@ export function TransactionProvider({ children }) {
 
     const payload = {
       id: user.id,
-      monthly_salaries: nextMonthlySalaries,
+      monthly_salaries: mergedMonthlySalaries,
       monthly_income: numericAmount,
     };
     if (setOnboarded) payload.has_onboarded = true;
@@ -398,7 +411,7 @@ export function TransactionProvider({ children }) {
       .upsert(payload, { onConflict: 'id' });
 
     if (err) return { error: err.message };
-    setMonthlySalaries(nextMonthlySalaries);
+    setMonthlySalaries(mergedMonthlySalaries);
     if (setOnboarded) setHasOnboarded(true);
     return { success: true };
   };
@@ -419,39 +432,105 @@ export function TransactionProvider({ children }) {
   };
 
   // ── Update Category Budgets ───────────────────────────────────────────────
-  const updateCategoryBudgets = async (newBudgets) => {
-    if (!user) return { error: "Belum login" };
-    const { error: err } = await supabase
-      .from("profiles")
-      .upsert({ id: user.id, category_budgets: newBudgets }, { onConflict: 'id' });
+  const updateCategoryBudget = async (categoryName, amount) => {
+    try {
+      if (!user) return { error: "Belum login" };
 
-    if (err) return { error: err.message };
-    setCategoryBudgets(newBudgets);
-    return { success: true };
+      // 1. Convert safely to a plain number primitive (handle event objects or raw values)
+      let numericAmount = 0;
+      if (amount && typeof amount === 'object') {
+        if (amount.target) numericAmount = Number(amount.target.value);
+        else if ('amount' in amount) numericAmount = Number(amount.amount);
+      } else {
+        numericAmount = Number(amount);
+      }
+      if (isNaN(numericAmount)) numericAmount = 0;
+
+      // 2. Fetch the absolute freshest profiles data from Supabase
+      const { data: profile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('category_budgets')
+        .eq('id', user.id)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
+
+      const currentBudgets = profile?.category_budgets || {};
+
+      // 3. Force initialize the nested structure correctly: { "2026-05": {} }
+      if (!currentBudgets[selectedMonthKey] || typeof currentBudgets[selectedMonthKey] !== 'object') {
+        currentBudgets[selectedMonthKey] = {};
+      }
+
+      // 4. CRITICAL: Plain primitive number assignment. NO SPREAD OPERATOR.
+      currentBudgets[selectedMonthKey][categoryName] = numericAmount;
+
+      // console.log("🔥 REAL DEBUG - FINAL OBJECT GOING TO SUPABASE:", currentBudgets);
+
+      // 5. Upsert back to database
+      const { error: upsertError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          category_budgets: currentBudgets,
+          updated_at: new Date().toISOString()
+        });
+
+      if (upsertError) throw upsertError;
+
+      // 6. Sync to local state
+      setCategoryBudgets(currentBudgets);
+      return { error: null };
+    } catch (error) {
+      console.error("Error updating category budget:", error);
+      return { error };
+    }
   };
 
-  const updateCategoryBudget = async (categoryName, newLimit) => {
-    if (!user) return { error: "Belum login" };
-    if (!categoryName || typeof categoryName !== "string") return { error: "Kategori tidak valid" };
+  const updateCategoryBudgets = async (newBudgets) => {
+    try {
+      if (!user) return { error: "Belum login" };
 
-    const parsedLimit = Number(newLimit);
-    if (!Number.isFinite(parsedLimit) || parsedLimit < 0) return { error: "Batas budget tidak valid" };
+      const { data: profile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('category_budgets')
+        .eq('id', user.id)
+        .single();
 
-    const nextBudgets = {
-      ...(categoryBudgets || {}),
-      [selectedMonthKey]: {
-        ...(categoryBudgets?.[selectedMonthKey] || {}),
-        [categoryName]: parsedLimit,
-      },
-    };
+      if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
 
-    const { error: err } = await supabase
-      .from("profiles")
-      .upsert({ id: user.id, category_budgets: nextBudgets }, { onConflict: "id" });
+      const currentBudgets = profile?.category_budgets || {};
 
-    if (err) return { error: err.message };
-    setCategoryBudgets(nextBudgets);
-    return { success: true };
+      if (!currentBudgets[selectedMonthKey] || typeof currentBudgets[selectedMonthKey] !== 'object') {
+        currentBudgets[selectedMonthKey] = {};
+      }
+
+      // Clean and map incoming budgets as plain numbers
+      const cleanedMonthBudgets = {};
+      Object.keys(newBudgets).forEach((cat) => {
+        cleanedMonthBudgets[cat] = Number(newBudgets[cat]) || 0;
+      });
+
+      currentBudgets[selectedMonthKey] = {
+        ...currentBudgets[selectedMonthKey],
+        ...cleanedMonthBudgets
+      };
+
+      const { error: upsertError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          category_budgets: currentBudgets,
+          updated_at: new Date().toISOString()
+        });
+
+      if (upsertError) throw upsertError;
+      setCategoryBudgets(currentBudgets);
+      return { error: null };
+    } catch (error) {
+      console.error("Error updating category budgets:", error);
+      return { error };
+    }
   };
 
   // ── Tambah & Hapus Transaksi ─────────────────────────────────────────────
@@ -719,7 +798,7 @@ export function TransactionProvider({ children }) {
     updateCategoryBudget,
     getBudgetProgress,
     setSelectedDate,
-    refetch: fetchData,
+    // refetch: fetchData, // removed, no longer exists
   };
 
   return (

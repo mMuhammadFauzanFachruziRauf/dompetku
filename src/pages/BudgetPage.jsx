@@ -4,7 +4,7 @@ import { formatRupiah, getMeta } from "../utils/helpers";
 import Icon from "../components/ui/Icon";
 
 export default function BudgetPage() {
-  const { getBudgetProgress, categories, categoryBudgets, updateCategoryBudgets } = useTransaction();
+  const { getBudgetProgress, categories, categoryBudgets, currentMonthCategoryBudgets, updateCategoryBudgets } = useTransaction();
 
   // Progress Data
   const progressData = getBudgetProgress();
@@ -15,8 +15,8 @@ export default function BudgetPage() {
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    setLocalBudgets(categoryBudgets || {});
-  }, [categoryBudgets]);
+    setLocalBudgets(currentMonthCategoryBudgets || {});
+  }, [currentMonthCategoryBudgets]);
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok });

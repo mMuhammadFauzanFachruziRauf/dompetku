@@ -6,171 +6,72 @@ Aplikasi pencatat keuangan pribadi cerdas berbasis React, Vite, TailwindCSS, dan
 
 ## ✨ Fitur Utama
 
-### 🧠 Smart Input
+### 🧠 Smart Input & Bahasa Natural
+* Cukup ketik transaksi dalam satu kalimat: `"makan nasgor 20000"`
+* Sistem otomatis mendeteksi nominal, jenis transaksi (pengeluaran), dan kategori secara cerdas.
 
-Input transaksi dengan bahasa natural.
+### 💳 Multi-Wallet & Sinkronisasi Saldo
+* Manajemen banyak kantong penyimpanan sekaligus (Bank Jago, DANA, BCA, Dompet Tunai, dll).
+* Fitur **Quick Action Transfer** antar-dompet yang otomatis memotong dan menambah saldo secara *real-time* tanpa merusak laporan pengeluaran rutin.
 
-```txt
-"makan nasgor 20000"
-```
+### 💰 Envelope Budgeting Scoped per Bulan (50/30/20)
+* Alokasi anggaran ketat berdasarkan metode finansial teruji: *Needs* (50%), *Wants* (30%), dan *Savings* (20%).
+* Anggaran terisolasi penuh per periode bulan; mengubah budget bulan ini tidak akan merusak data historis bulan lalu.
 
-Langsung terdeteksi sebagai pengeluaran + kategori otomatis.
+### 📈 Visualisasi Tren Harian (Trend Analysis)
+* Grafik garis (*Line Chart*) interaktif menggunakan `recharts` yang responsif untuk melacak naik-turun pengeluaran harian.
+* Mempermudah pengguna mendeteksi *spending spikes* (lonjakan pengeluaran) pada tanggal tertentu.
 
-### 💰 Envelope Budgeting (50/30/20)
+### 📊 Export Laporan Excel Premium
+* Fitur unduh laporan bulanan langsung ke format `.xlsx` profesional ditenagai oleh `exceljs`.
+* Desain visual modern: *Header* berwarna tegas, format mata uang rupiah otomatis, pewarnaan teks (merah untuk pengeluaran), serta formula **AutoSum (Total Otomatis)** di bagian bawah tabel.
 
-* **Needs (50%)** → kebutuhan utama
-* **Wants (30%)** → gaya hidup
-* **Savings (20%)** → tabungan & investasi
-
-### 📆 Dynamic Monthly Salary
-
-* Gaji bisa berbeda tiap bulan
-* Bisa ditambahkan catatan khusus
-
-### 🗂️ Kategori Terstruktur
-
-* Income & Expense dipisah jelas
-* Dukungan ikon & emoji
-
-### ⏳ Time Travel
-
-* Lihat histori bulan sebelumnya
-* Pantau sisa anggaran tiap bulan
-
-### 📊 Export Excel
-
-* Export laporan otomatis
-* Format sudah rapi & siap pakai
+### ⏳ Time Travel Navigation
+* Kemampuan berpindah antar-bulan untuk memantau riwayat transaksi, catatan gaji bulanan yang dinamis, serta evaluasi sisa anggaran masa lalu.
 
 ---
 
 ## 🚀 Setup Lokal (Development)
 
 ### 1. Clone Repository
-
 ```bash
-git clone https://github.com/mMuhammadFauzanFachruziRauf/dompetku.git
+git clone [https://github.com/mMuhammadFauzanFachruziRauf/dompetku.git](https://github.com/mMuhammadFauzanFachruziRauf/dompetku.git)
 cd dompetku
-```
-
-### 2. Install Dependencies
-
-```bash
+2. Install Dependencies
+Bash
 npm install
-```
+3. Environment Variables
+Buat file .env di root direktori:
 
-### 3. Setup Supabase
-
-1. Buka [https://app.supabase.com](https://app.supabase.com)
-2. Buat project baru
-3. Ambil:
-
-   * Project URL
-   * anon/public key
-4. Jalankan SQL di folder:
-
-```bash
-/supabase/
-```
-
----
-
-### 4. Environment Variables
-
-Buat file `.env`:
-
-```env
+Cuplikan kode
 VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY
-```
-
----
-
-### 5. Jalankan Aplikasi
-
-```bash
+4. Jalankan Aplikasi
+Bash
 npm run dev
-```
+Akses di: http://localhost:5173
 
-Akses di:
-
-```
-http://localhost:5173
-```
-
----
-
-## 🌐 Deployment (Google Cloud Run)
-
-### 1. Build Image
-
-```bash
+🌐 Deployment (Google Cloud Run)
+1. Build Image via Cloud Build
+Bash
 gcloud builds submit --config cloudbuild.yaml .
-```
-
-### 2. Deploy
-
-```bash
+2. Deploy ke Cloud Run
+Bash
 gcloud run deploy dompetku-service \
   --image asia-southeast2-docker.pkg.dev/PROJECT_ID/dompetku-repo/dompetku-app:v1 \
   --region asia-southeast2 \
   --allow-unauthenticated \
   --port 8080
-```
+🛠️ Tech Stack & Libraries
+Frontend: React.js, Vite, Tailwind CSS
 
----
+Database & Auth: Supabase (PostgreSQL)
 
-## 📁 Struktur Proyek
+Charts: Recharts
 
-```bash
-src/
-├── components/
-├── contexts/
-├── lib/
-├── pages/
-├── utils/
-├── App.jsx
-└── main.jsx
-```
+Excel Engine: ExcelJS & File-Saver
 
----
+Icons: Lucide React
 
-## 🛠️ Tech Stack
-
-* React
-* Vite
-* TailwindCSS
-* Supabase
-* Google Cloud Run
-
----
-
-## 📋 Roadmap
-
-* [x] Setup project
-* [x] Auth Supabase
-* [x] Dashboard & DB Sync
-* [x] Smart Input
-* [x] Kategori & Emoji
-* [x] Time Travel
-* [x] Statistik 50/30/20
-* [x] Export Excel
-* [x] Deployment Cloud Run
-
----
-
-## 💡 Catatan Pengembangan
-
-Aplikasi ini dibuat sebagai portofolio dengan fokus pada:
-
-* UX sederhana
-* Kecepatan input
-* Insight keuangan yang praktis
-
----
-
-## 📌 Status
-
-🟢 Production Ready (MVP)
-
----
+📌 Status Proyek
+🟢 Production Ready (MVP Stabilized)
