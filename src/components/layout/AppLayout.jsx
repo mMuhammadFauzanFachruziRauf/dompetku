@@ -41,7 +41,9 @@ const MonthSelector = () => {
 
 export default function AppLayout({ tab, setTab, children }) {
   const { user, signOut } = useAuth();
-  const { remaining, loading } = useTransaction();
+  const { remaining, loading, selectedDate } = useTransaction();
+  const now = new Date();
+  const isCurrentMonth = selectedDate.getFullYear() === now.getFullYear() && selectedDate.getMonth() === now.getMonth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -90,7 +92,7 @@ export default function AppLayout({ tab, setTab, children }) {
               Sisa Budget
             </p>
             <p className={`text-xl font-bold relative z-10 ${remaining < 0 ? "text-error" : "text-secondary"}`}>
-              {loading ? "—" : formatRupiah(remaining)}
+              {loading ? "—" : (isCurrentMonth ? formatRupiah(remaining) : "Hanya tampil di bulan ini")}
             </p>
             <button
               onClick={() => setTab("catat")}

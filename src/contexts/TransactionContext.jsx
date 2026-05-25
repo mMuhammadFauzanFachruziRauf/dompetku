@@ -285,19 +285,7 @@ export function TransactionProvider({ children }) {
   };
 
   useEffect(() => {
-    if (user) {
-      // Directly call fetch functions to avoid stale closure issues
-      // Only depend on 'user' to trigger on login/logout
-      (async () => {
-        await Promise.all([
-          fetchTransactions(),
-          fetchAllTransactionsForBalances(),
-          fetchProfile(),
-          fetchCategories(),
-          fetchWallets(),
-        ]);
-      })();
-    } else {
+    if (!user) {
       // Clear state when logged out
       setTransactions([]);
       setTransactionsRevision((r) => r + 1);
@@ -309,7 +297,57 @@ export function TransactionProvider({ children }) {
       setShortcuts([]);
       setCategoryBudgets({});
       setLoading(false);
+      return;
     }
+
+    let cancelled = false;
+    let subscription = null;
+    let fallbackTimeout = null;
+
+    const runFetches = async () => {
+      if (cancelled) return;
+      try {
+        await Promise.all([
+          fetchTransactions(),
+          fetchAllTransactionsForBalances(),
+          fetchProfile(),
+          fetchCategories(),
+          fetchWallets(),
+        ]);
+      } catch (e) {
+        // swallow - individual fetchers set errors
+      }
+    };
+
+    (async () => {
+      // 1) If there's already an attached session, run immediately.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await runFetches();
+        return;
+      }
+
+      // 2) Otherwise, wait for the SIGNED_IN event via onAuthStateChange
+      //    as the most reliable indicator that the client has the token.
+      const { data } = supabase.auth.onAuthStateChange((event, sess) => {
+        if (event === "SIGNED_IN" && sess) {
+          runFetches();
+        }
+      });
+      subscription = data.subscription;
+
+      // 3) Fallback: if SIGNED_IN never arrives within a short window,
+      //    run fetches anyway (covers edge cases like same-tab redirects).
+      fallbackTimeout = setTimeout(() => {
+        runFetches();
+      }, 800);
+    })();
+
+    return () => {
+      cancelled = true;
+      if (subscription) subscription.unsubscribe();
+      if (fallbackTimeout) clearTimeout(fallbackTimeout);
+    };
   }, [user, fetchTransactions, fetchAllTransactionsForBalances, fetchProfile, fetchCategories, fetchWallets]);
 
   // ── Kategori CRUD ────────────────────────────────────────────────────────
@@ -353,11 +391,6 @@ export function TransactionProvider({ children }) {
     () => categoryBudgets?.[selectedMonthKey] || {},
     [categoryBudgets, selectedMonthKey]
   );
-  const currentMonthSalaryInfo = useMemo(
-    () => normalizeSalaryInfo(monthlySalaries[selectedMonthKey] || DEFAULT_SALARY_INFO),
-    [monthlySalaries, selectedMonthKey]
-  );
-  const income = currentMonthSalaryInfo.amount;
   const categoryTypeByName = useMemo(() => {
     const map = {};
     for (const category of categories) {
@@ -376,6 +409,14 @@ export function TransactionProvider({ children }) {
     if (categoryType) return "pengeluaran";
     return Number(tx?.nominal || 0) < 0 ? "pemasukan" : "pengeluaran";
   }, [categoryTypeByName]);
+
+  // Dynamic income: compute from actual `pemasukan` transactions for selected month
+  // `transactions` already contains only the currently selected month's transactions
+  const income = useMemo(() => {
+    return transactions
+      .filter((t) => resolveTransactionType(t) === "pemasukan")
+      .reduce((s, t) => s + Math.abs(Number(t.nominal || 0)), 0);
+  }, [transactions, resolveTransactionType]);
 
   const updateCurrentMonthSalary = async (newAmount, newNote = "", setOnboarded = false) => {
     if (!user) return { error: "Belum login" };
@@ -416,8 +457,18 @@ export function TransactionProvider({ children }) {
     return { success: true };
   };
 
+  const markOnboarded = async () => {
+    if (!user) return { error: "Belum login" };
+    const { error: err } = await supabase
+      .from('profiles')
+      .upsert({ id: user.id, has_onboarded: true }, { onConflict: 'id' });
+    if (err) return { error: err.message };
+    setHasOnboarded(true);
+    return { success: true };
+  };
+
   const updateIncome = (newIncome, setOnboarded = false) =>
-    updateCurrentMonthSalary(newIncome, currentMonthSalaryInfo.note, setOnboarded);
+    updateCurrentMonthSalary(newIncome, "", setOnboarded);
 
   // ── Update Shortcuts ─────────────────────────────────────────────────────
   const updateShortcuts = async (newShortcuts) => {
@@ -695,9 +746,10 @@ export function TransactionProvider({ children }) {
     (sum, wallet) => sum + Number(wallet.starting_balance || 0),
     0
   );
-  const totalBaseIncome = income + totalWalletStartingBalance;
-  const remaining = totalBaseIncome + totalIncomeTx - totalSpent;
-  const totalMonthlyIncome = totalBaseIncome + totalIncomeTx;
+
+  // Baseline for budgets & 50/30/20 is now the dynamically-calculated `income`
+  const totalMonthlyIncome = income;
+  const remaining = totalMonthlyIncome - totalSpent;
   const pct = totalMonthlyIncome > 0
     ? Math.max(0, Math.min(Math.round((totalSpent / totalMonthlyIncome) * 100), 100))
     : 0;
@@ -770,8 +822,6 @@ export function TransactionProvider({ children }) {
     loading,
     error,
     income,
-    monthlySalaries,
-    currentMonthSalaryInfo,
     hasOnboarded,
     shortcuts,
     categoryBudgets,
@@ -793,6 +843,7 @@ export function TransactionProvider({ children }) {
     deleteWallet,
     updateIncome,
     updateCurrentMonthSalary,
+    markOnboarded,
     updateShortcuts,
     updateCategoryBudgets,
     updateCategoryBudget,

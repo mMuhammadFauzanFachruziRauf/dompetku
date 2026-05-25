@@ -1,12 +1,9 @@
 import { useState, useEffect } from "react";
 import { useTransaction } from "../contexts/TransactionContext";
-import { formatRupiah } from "../utils/helpers";
 import Icon from "./ui/Icon";
 
 export default function SettingsModal({ isOpen, onClose }) {
-  const { currentMonthSalaryInfo, selectedDate, updateCurrentMonthSalary, shortcuts, updateShortcuts } = useTransaction();
-  const [inputIncome, setInputIncome] = useState("");
-  const [salaryNote, setSalaryNote] = useState("");
+  const { selectedDate, shortcuts, updateShortcuts } = useTransaction();
   const [localShortcuts, setLocalShortcuts] = useState([]);
   const [newShortcut, setNewShortcut] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,14 +12,12 @@ export default function SettingsModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (isOpen) {
-      setInputIncome(currentMonthSalaryInfo.amount.toString());
-      setSalaryNote(currentMonthSalaryInfo.note);
       setLocalShortcuts([...(shortcuts || [])]);
       setError("");
       setSuccess(false);
       setNewShortcut("");
     }
-  }, [isOpen, currentMonthSalaryInfo, shortcuts]);
+  }, [isOpen, shortcuts]);
 
   if (!isOpen) return null;
 
@@ -31,19 +26,12 @@ export default function SettingsModal({ isOpen, onClose }) {
     setError("");
     setSuccess(false);
 
-    const numericVal = Number(inputIncome.replace(/\D/g, ""));
-    if (numericVal < 0 || isNaN(numericVal)) {
-      setError("Nominal tidak valid.");
-      return;
-    }
-
     setLoading(true);
-    const { error: err1 } = await updateCurrentMonthSalary(numericVal, salaryNote);
     const { error: err2 } = await updateShortcuts(localShortcuts);
     setLoading(false);
 
-    if (err1 || err2) {
-      setError(err1 || err2);
+    if (err2) {
+      setError(err2);
     } else {
       setSuccess(true);
       setTimeout(() => {
@@ -63,13 +51,6 @@ export default function SettingsModal({ isOpen, onClose }) {
     setLocalShortcuts(prev => prev.filter(item => item !== s));
   };
 
-  const handleInputChange = (e) => {
-    // Hanya angka
-    const val = e.target.value.replace(/\D/g, "");
-    setInputIncome(val);
-  };
-
-  const monthName = selectedDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
@@ -87,37 +68,7 @@ export default function SettingsModal({ isOpen, onClose }) {
 
         {/* Body */}
         <form onSubmit={handleSave} className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-on-surface mb-1.5">
-              Gaji & Catatan <span className="capitalize">{monthName}</span>
-            </label>
-            <p className="text-xs text-on-surface-variant mb-3">
-              Nominal dan catatan ini khusus untuk bulan yang sedang aktif di Month Selector.
-            </p>
-            
-            <div className="relative group">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-bold">
-                Rp
-              </span>
-              <input
-                type="text"
-                value={inputIncome ? Number(inputIncome).toLocaleString("id-ID") : ""}
-                onChange={handleInputChange}
-                className="w-full bg-surface-container border border-outline-variant/30 rounded-xl pl-12 pr-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all font-semibold"
-                placeholder="0"
-                required
-              />
-            </div>
-            <textarea
-              value={salaryNote}
-              onChange={e => setSalaryNote(e.target.value)}
-              placeholder="Catatan Gaji, misalnya: Potongan telat 100k"
-              rows={3}
-              className="mt-3 w-full bg-surface-container border border-outline-variant/30 rounded-xl px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all resize-none"
-            />
-            {error && <p className="text-xs text-error mt-2">{error}</p>}
-            {success && <p className="text-xs text-emerald-400 mt-2">Pengaturan berhasil diperbarui!</p>}
-          </div>
+          {/* Salary input removed - income is now derived from transactions */}
 
           <div className="pt-2 border-t border-outline-variant/20">
             <label className="block text-sm font-semibold text-on-surface mt-2 mb-1.5">

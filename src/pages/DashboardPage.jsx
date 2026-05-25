@@ -4,20 +4,8 @@ import { formatRupiah, formatDate, getMeta } from "../utils/helpers";
 import Icon from "../components/ui/Icon";
 import { useState } from "react";
 
-function OnboardingBanner({ selectedDate, updateCurrentMonthSalary }) {
-  const [val, setVal] = useState("");
-  const [note, setNote] = useState("");
-  const [loading, setLoading] = useState(false);
+function OnboardingBanner({ selectedDate, markOnboarded }) {
   const monthName = selectedDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-
-  const handleSave = async (isZero = false) => {
-    const finalVal = isZero ? 0 : val;
-    if (!isZero && (!val || val < 0)) return;
-    setLoading(true);
-    await updateCurrentMonthSalary(finalVal, note, true);
-    setLoading(false);
-  };
-
   return (
     <div className="glass-card p-6 md:p-10 border border-emerald-500/30 bg-surface-container-high/80 relative overflow-hidden animate-slide-up shadow-2xl">
       <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
@@ -29,51 +17,15 @@ function OnboardingBanner({ selectedDate, updateCurrentMonthSalary }) {
         </div>
         <h2 className="text-2xl md:text-3xl font-black text-on-surface tracking-tight">Selamat Datang di DompetKu!</h2>
         <p className="text-sm md:text-base text-on-surface-variant leading-relaxed">
-          Untuk mulai menggunakan DompetKu secara maksimal dan melihat ringkasan budget Anda, silakan atur Pemasukan Bulanan utama Anda terlebih dahulu.
+          Untuk mulai menggunakan DompetKu secara maksimal dan melihat ringkasan budget Anda, catat pemasukan nyata Anda sebagai transaksi pada dompet terkait. Sistem akan otomatis menghitung penghasilan bulan {monthName} dari transaksi tersebut.
         </p>
-        
+
         <div className="w-full mt-6 space-y-4 pt-4 border-t border-outline-variant/20">
-          <div className="text-left">
-            <label className="block text-sm font-semibold text-on-surface mb-1.5 capitalize">
-              Gaji & Catatan {monthName}
-            </label>
-            <p className="text-xs text-on-surface-variant mb-3">
-              Nominal ini khusus untuk bulan yang sedang dipilih.
-            </p>
-          </div>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
-              <Icon name="payments" sizeClass="text-[18px]" />
-            </span>
-            <input
-              type="number"
-              value={val}
-              onChange={e => setVal(e.target.value)}
-              placeholder="Contoh: 5000000"
-              className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl pl-11 pr-4 py-4 text-on-surface text-base font-bold focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all placeholder:text-on-surface-variant/40 placeholder:font-normal"
-            />
-          </div>
-          <textarea
-            value={note}
-            onChange={e => setNote(e.target.value)}
-            placeholder="Catatan Gaji, misalnya: Potongan telat 100k"
-            rows={3}
-            className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl px-4 py-3.5 text-on-surface text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all placeholder:text-on-surface-variant/40 resize-none"
-          />
           <button
-            onClick={() => handleSave()}
-            disabled={!val || val < 0 || loading}
-            className="w-full bg-emerald-500 text-slate-900 font-bold py-4 rounded-xl hover:bg-emerald-400 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+            onClick={() => markOnboarded && markOnboarded()}
+            className="w-full bg-emerald-500 text-slate-900 font-bold py-4 rounded-xl hover:bg-emerald-400 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
           >
-            {loading ? "Menyimpan..." : "Mulai Gunakan DompetKu"}
-            {!loading && <Icon name="arrow_forward" sizeClass="text-[18px]" />}
-          </button>
-          <button
-            onClick={() => handleSave(true)}
-            disabled={loading}
-            className="w-full bg-transparent border border-outline-variant/30 text-on-surface-variant font-bold py-4 rounded-xl hover:bg-surface-container-high hover:text-on-surface disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center"
-          >
-            Saya belum ada pemasukan tetap
+            Saya mengerti
           </button>
         </div>
       </div>
@@ -222,14 +174,16 @@ export default function DashboardPage({ setTab }) {
     byCategory,
     expenseByCategory,
     selectedDate,
-    updateCurrentMonthSalary,
+    markOnboarded,
     wallets,
     walletBalances,
     getBudgetProgress,
   } = useTransaction();
 
+  const now = new Date();
+  const isCurrentMonth = selectedDate.getFullYear() === now.getFullYear() && selectedDate.getMonth() === now.getMonth();
+
   const name = user?.user_metadata?.full_name?.split(" ")[0] || "Kamu";
-  const now  = new Date();
   const hour = now.getHours();
   const greeting = hour < 11 ? "Selamat pagi" : hour < 15 ? "Selamat siang" : hour < 19 ? "Selamat sore" : "Selamat malam";
   const avgPerDay = transactions.length > 0 ? Math.round(totalSpent / Math.max(now.getDate(), 1)) : 0;
@@ -237,7 +191,7 @@ export default function DashboardPage({ setTab }) {
   if (!loading && !hasOnboarded) {
     return (
       <div className="px-4 md:px-8 pt-10 pb-6 max-w-[800px] mx-auto">
-        <OnboardingBanner selectedDate={selectedDate} updateCurrentMonthSalary={updateCurrentMonthSalary} />
+        <OnboardingBanner selectedDate={selectedDate} markOnboarded={markOnboarded} />
       </div>
     );
   }
@@ -419,7 +373,8 @@ export default function DashboardPage({ setTab }) {
           </div>
         </section>
 
-        <section className="lg:col-span-12 glass-card p-6">
+        {isCurrentMonth && (
+          <section className="lg:col-span-12 glass-card p-6">
           <h3 className="text-base font-bold text-on-surface mb-4">Saldo Dompet</h3>
           {wallets.length === 0 ? (
             <p className="text-sm text-on-surface-variant">Belum ada dompet.</p>
@@ -449,7 +404,8 @@ export default function DashboardPage({ setTab }) {
               })}
             </div>
           )}
-        </section>
+          </section>
+        )}
 
       </div>
     </div>

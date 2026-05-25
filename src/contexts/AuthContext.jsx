@@ -9,18 +9,21 @@ const AuthContext = createContext(null);
  */
 export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null);
+  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true); // true saat pertama cek session
 
   useEffect(() => {
     // 1. Cek apakah sudah ada session aktif (misal: reload halaman)
     supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session ?? null);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
     // 2. Subscribe ke perubahan auth (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        setSession(session ?? null);
         setUser(session?.user ?? null);
         setLoading(false);
       }
@@ -33,7 +36,7 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut();
   };
 
-  const value = { user, loading, signOut };
+  const value = { user, session, loading, signOut };
 
   return (
     <AuthContext.Provider value={value}>
