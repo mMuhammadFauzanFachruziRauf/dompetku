@@ -194,6 +194,7 @@ export default function RiwayatPage({ setTab }) {
           <div className="glass-card overflow-hidden">
             {txList.map((tx, i) => {
               const m = getMeta(tx.kategori, categories);
+              const walletName = tx.wallets?.name || tx.to_wallet?.name || tx.wallet?.name || "";
               const isConf = confirmId === tx.id;
               const isDel  = deletingId === tx.id;
               return (
@@ -210,10 +211,16 @@ export default function RiwayatPage({ setTab }) {
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-on-surface truncate">{tx.catatan || tx.kategori}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
                       <span className="text-[10px] font-semibold text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full">
                         {tx.kategori}
                       </span>
+                      {walletName ? (
+                        <>
+                          <span className="text-[9px] text-outline">•</span>
+                          <span className="text-[10px] text-on-surface-variant truncate max-w-[120px]">{walletName}</span>
+                        </>
+                      ) : null}
                       <span className="text-[9px] text-outline">•</span>
                       <span className="text-[10px] text-on-surface-variant">
                         {new Date(tx.tanggal).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}

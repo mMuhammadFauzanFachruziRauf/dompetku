@@ -212,7 +212,7 @@ export default function DashboardPage({ setTab }) {
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Sisa Budget" icon="account_balance_wallet"
-          value={formatRupiah(remaining, true)}
+          value={remaining < 0 ? `-${formatRupiah(Math.abs(remaining), true)}` : formatRupiah(remaining, true)}
           color={remaining < 0 ? "text-error" : "text-secondary"}
           sub={`dari ${formatRupiah(income, true)}`}/>
         <StatCard label="Pengeluaran" icon="trending_down"
@@ -267,7 +267,7 @@ export default function DashboardPage({ setTab }) {
                           <p className="text-xs text-on-surface-variant mt-1">
                             {item.category}: {isDanger 
                               ? `Lebih Rp ${formatRupiah(Math.abs(item.remaining))}` 
-                              : `Sisa Rp ${formatRupiah(item.remaining)}`
+                              : `Sisa Rp ${item.remaining < 0 ? `-${formatRupiah(Math.abs(item.remaining))}` : formatRupiah(item.remaining)}`
                             }
                           </p>
                         </div>
@@ -296,7 +296,7 @@ export default function DashboardPage({ setTab }) {
               <div>
                 <p className="text-xs text-on-surface-variant mb-0.5">Sisa</p>
                 <p className={`text-lg font-bold ${remaining < 0 ? "text-error" : "text-secondary"}`}>
-                  {formatRupiah(remaining, true)}
+                  {remaining < 0 ? `-${formatRupiah(Math.abs(remaining), true)}` : formatRupiah(remaining, true)}
                 </p>
               </div>
               <div className="h-1.5 bg-surface-container-highest rounded-full overflow-hidden">

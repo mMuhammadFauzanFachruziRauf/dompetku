@@ -92,7 +92,7 @@ export default function AppLayout({ tab, setTab, children }) {
               Sisa Budget
             </p>
             <p className={`text-xl font-bold relative z-10 ${remaining < 0 ? "text-error" : "text-secondary"}`}>
-              {loading ? "—" : (isCurrentMonth ? formatRupiah(remaining) : "Hanya tampil di bulan ini")}
+              {loading ? "—" : (isCurrentMonth ? (remaining < 0 ? `-${formatRupiah(Math.abs(remaining))}` : formatRupiah(remaining)) : "Hanya tampil di bulan ini")}
             </p>
             <button
               onClick={() => setTab("catat")}
