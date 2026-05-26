@@ -166,6 +166,9 @@ export default function CatatPage({ setTab }) {
   const selectedWallet = wallets.find((w) => w.id === walletId);
   const selectedFromWallet = wallets.find((w) => w.id === fromWalletId);
   const selectedToWallet = wallets.find((w) => w.id === toWalletId);
+  const getWalletBalance = (id) => Number(
+    walletBalances?.[id]?.balance ?? wallets.find((w) => w.id === id)?.starting_balance ?? 0
+  );
   const parsedNominal = parseFloat(String(nominal).replace(/\./g, "").replace(/,/g, "")) || 0;
   const sourceWallet = jenis === "Transfer" ? selectedFromWallet : selectedWallet;
   const sourceWalletBalance = sourceWallet
@@ -343,7 +346,7 @@ export default function CatatPage({ setTab }) {
               >
                 {wallets.map((wallet) => (
                   <option key={wallet.id} value={wallet.id}>
-                    {wallet.name}
+                    {wallet.name} ({formatRupiah(getWalletBalance(wallet.id))})
                   </option>
                 ))}
               </select>
@@ -379,7 +382,7 @@ export default function CatatPage({ setTab }) {
                 >
                   {wallets.map((wallet) => (
                     <option key={wallet.id} value={wallet.id}>
-                      {wallet.name}
+                      {wallet.name} ({formatRupiah(getWalletBalance(wallet.id))})
                     </option>
                   ))}
                 </select>
@@ -413,7 +416,7 @@ export default function CatatPage({ setTab }) {
                 >
                   {availableToWallets.map((wallet) => (
                     <option key={wallet.id} value={wallet.id}>
-                      {wallet.name}
+                      {wallet.name} ({formatRupiah(getWalletBalance(wallet.id))})
                     </option>
                   ))}
                 </select>

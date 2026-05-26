@@ -8,9 +8,9 @@ import Icon from "../ui/Icon";
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard",    icon: "dashboard",              iconFilled: "dashboard"             },
   { key: "catat",     label: "Catat",        icon: "add_circle",             iconFilled: "add_circle"            },
-  { key: "budget",    label: "Budget",       icon: "account_balance_wallet", iconFilled: "account_balance_wallet" },
   { key: "riwayat",   label: "Riwayat",      icon: "receipt_long",           iconFilled: "receipt_long"          },
   { key: "statistik", label: "Statistik",    icon: "bar_chart",              iconFilled: "bar_chart"             },
+  { key: "budget",    label: "Budget",       icon: "account_balance_wallet", iconFilled: "account_balance_wallet" },
 ];
 
 const MonthSelector = () => {

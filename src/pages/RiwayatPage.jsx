@@ -6,10 +6,14 @@ import { downloadExcel }     from "../utils/exportExcel";
 import EditTransactionModal  from "../components/EditTransactionModal";
 
 const ALL = "Semua";
+const TYPE_ALL = "Semua";
+const TYPE_INCOME = "Pemasukan";
+const TYPE_EXPENSE = "Pengeluaran";
 
 export default function RiwayatPage({ setTab }) {
   const { transactions, transactionsRevision, categories, loading, deleteTransaction } = useTransaction();
   const [filterKat, setFilterKat] = useState(ALL);
+  const [filterType, setFilterType] = useState(TYPE_ALL);
   const [search,    setSearch]    = useState("");
   const [deletingId, setDeletingId] = useState(null);
   const [confirmId,  setConfirmId]  = useState(null);
@@ -34,8 +38,10 @@ export default function RiwayatPage({ setTab }) {
     const matchKat = filterKat === ALL || tx.kategori === filterKat;
     const matchSearch = !search || [tx.catatan, tx.kategori].join(" ")
       .toLowerCase().includes(search.toLowerCase());
-    return matchKat && matchSearch;
-  }), [displayTransactions, filterKat, search]);
+    const matchType = filterType === TYPE_ALL
+      || (filterType === TYPE_INCOME ? tx.nominal < 0 : tx.nominal > 0);
+    return matchKat && matchSearch && matchType;
+  }), [displayTransactions, filterKat, search, filterType]);
 
   const totalFilteredExpense = filtered.filter(t => t.nominal > 0).reduce((s,t) => s + t.nominal, 0);
 
@@ -90,6 +96,30 @@ export default function RiwayatPage({ setTab }) {
         <input type="search" value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Cari transaksi..."
           className="w-full bg-surface-container/70 border border-outline-variant/30 rounded-xl pl-11 pr-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-secondary/50 focus:ring-1 focus:ring-secondary/20 transition-all"/>
+      </div>
+
+      {/* Type filter: Semua / Pemasukan / Pengeluaran */}
+      <div className="flex gap-2">
+        <button onClick={() => setFilterType(TYPE_ALL)}
+          className={`flex-shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full transition-all border ${
+            filterType === TYPE_ALL ? "bg-surface-container/80 text-on-surface" : "bg-surface-container/60 text-on-surface-variant border-outline-variant/30 hover:border-outline-variant/60 hover:text-on-surface"
+          }`}>
+          Semua
+        </button>
+
+        <button onClick={() => setFilterType(TYPE_INCOME)}
+          className={`flex-shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full transition-all border ${
+            filterType === TYPE_INCOME ? "bg-emerald-500 text-slate-900 border-emerald-500" : "bg-surface-container/60 text-on-surface-variant border-outline-variant/30 hover:border-outline-variant/60 hover:text-on-surface"
+          }`}>
+          Pemasukan
+        </button>
+
+        <button onClick={() => setFilterType(TYPE_EXPENSE)}
+          className={`flex-shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full transition-all border ${
+            filterType === TYPE_EXPENSE ? "bg-error text-slate-900 border-error" : "bg-surface-container/60 text-on-surface-variant border-outline-variant/30 hover:border-outline-variant/60 hover:text-on-surface"
+          }`}>
+          Pengeluaran
+        </button>
       </div>
 
       {/* Filter chips — horizontal scroll */}
