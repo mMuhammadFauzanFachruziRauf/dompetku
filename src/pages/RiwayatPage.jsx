@@ -191,7 +191,7 @@ export default function RiwayatPage({ setTab }) {
           </div>
 
           {/* Transactions */}
-          <div className="glass-card overflow-hidden">
+          <div className="glass-card">
             {txList.map((tx, i) => {
               const m = getMeta(tx.kategori, categories);
               const walletName = tx.wallets?.name || tx.to_wallet?.name || tx.wallet?.name || "";
@@ -199,7 +199,7 @@ export default function RiwayatPage({ setTab }) {
               const isDel  = deletingId === tx.id;
               return (
                 <div key={tx.id}
-                  className={`flex items-center gap-3 px-4 py-3.5 transition-all ${
+                  className={`flex flex-wrap md:flex-nowrap items-center gap-3 px-4 py-3.5 transition-all ${
                     i < txList.length - 1 ? "border-b border-outline-variant/20" : ""
                   } ${isConf ? "bg-error/5" : "hover:bg-surface-container-high/50"}`}>
 
@@ -229,7 +229,7 @@ export default function RiwayatPage({ setTab }) {
                   </div>
 
                   {/* Amount + delete */}
-                  <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                  <div className="w-full md:w-auto order-last md:order-none flex flex-col items-start md:items-end gap-1.5 md:flex-shrink-0 mt-2 md:mt-0">
                     <p className={`text-sm font-bold ${tx.nominal < 0 ? "text-emerald-400" : "text-error"}`}>
                       {tx.nominal < 0 ? "+" : "-"}{formatRupiah(Math.abs(tx.nominal))}
                     </p>

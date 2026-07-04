@@ -85,7 +85,7 @@ export default function AppLayout({ tab, setTab, children }) {
         </nav>
 
         {/* Sisa Budget Widget */}
-        <div className="mx-4 mb-4">
+        <div className="hidden md:block mx-4 mb-4">
           <div className="bg-surface-container p-4 rounded-xl border border-outline-variant/30 relative overflow-hidden">
             <div className="absolute inset-0 bg-emerald-500/5" />
             <p className="text-xs font-semibold tracking-widest uppercase text-on-surface-variant mb-1 relative z-10">

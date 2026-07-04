@@ -167,6 +167,12 @@ export default function DashboardPage({ setTab }) {
     categories,
     loading,
     income,
+    totalMonthlyIncome,
+    rolloverAmount,
+    previousMonthLeftover,
+    canClaimRollover,
+    claimBudgetRollover,
+    isCurrentCalendarMonth,
     hasOnboarded,
     totalSpent,
     remaining,
@@ -180,13 +186,32 @@ export default function DashboardPage({ setTab }) {
     getBudgetProgress,
   } = useTransaction();
 
+  const [claimingRollover, setClaimingRollover] = useState(false);
+  const [rolloverMessage, setRolloverMessage] = useState(null);
+
   const now = new Date();
-  const isCurrentMonth = selectedDate.getFullYear() === now.getFullYear() && selectedDate.getMonth() === now.getMonth();
+  const isCurrentMonth = isCurrentCalendarMonth;
 
   const name = user?.user_metadata?.full_name?.split(" ")[0] || "Kamu";
   const hour = now.getHours();
   const greeting = hour < 11 ? "Selamat pagi" : hour < 15 ? "Selamat siang" : hour < 19 ? "Selamat sore" : "Selamat malam";
   const avgPerDay = transactions.length > 0 ? Math.round(totalSpent / Math.max(now.getDate(), 1)) : 0;
+
+  const incomeSubLabel = rolloverAmount > 0
+    ? `${formatRupiah(income, true)} + ${formatRupiah(rolloverAmount, true)} sisa bulan lalu`
+    : `dari ${formatRupiah(income, true)}`;
+
+  const handleClaimRollover = async () => {
+    setClaimingRollover(true);
+    setRolloverMessage(null);
+    const result = await claimBudgetRollover();
+    if (result?.error) {
+      setRolloverMessage(typeof result.error === "string" ? result.error : "Gagal menarik sisa budget");
+    } else {
+      setRolloverMessage(`Berhasil! +${formatRupiah(result.amount)} ditambahkan ke budget bulan ini.`);
+    }
+    setClaimingRollover(false);
+  };
 
   if (!loading && !hasOnboarded) {
     return (
@@ -209,12 +234,66 @@ export default function DashboardPage({ setTab }) {
         </p>
       </div>
 
+      {isCurrentMonth && canClaimRollover && (
+        <div className="glass-card p-4 md:p-5 border border-emerald-500/40 bg-emerald-500/10 relative overflow-hidden animate-slide-up">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <div className="w-11 h-11 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                <Icon name="savings" sizeClass="text-[22px] text-emerald-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-emerald-400">Sisa Budget Bulan Lalu Tersedia</p>
+                <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">
+                  Bulan lalu masih ada sisa budget {formatRupiah(previousMonthLeftover)}.
+                  Tarik ke bulan ini tanpa mengubah saldo dompet fisik Anda.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleClaimRollover}
+              disabled={claimingRollover}
+              className="w-full md:w-auto flex-shrink-0 bg-emerald-500 text-slate-900 font-bold px-5 py-3.5 rounded-xl hover:bg-emerald-400 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {claimingRollover ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z"/>
+                  </svg>
+                  Memproses...
+                </>
+              ) : (
+                <>
+                  <Icon name="download" sizeClass="text-[18px]" />
+                  Tarik Sisa Budget Bulan Lalu ({formatRupiah(previousMonthLeftover)})
+                </>
+              )}
+            </button>
+          </div>
+          {rolloverMessage && (
+            <p className={`relative z-10 text-xs mt-3 ${rolloverMessage.startsWith("Berhasil") ? "text-emerald-400" : "text-error"}`}>
+              {rolloverMessage}
+            </p>
+          )}
+        </div>
+      )}
+
+      {isCurrentMonth && rolloverAmount > 0 && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-secondary/10 border border-secondary/30">
+          <Icon name="check_circle" sizeClass="text-[18px] text-secondary" />
+          <p className="text-xs text-on-surface-variant">
+            Sisa budget bulan lalu sudah ditarik: <span className="font-bold text-secondary">+{formatRupiah(rolloverAmount)}</span> (tidak mempengaruhi saldo dompet)
+          </p>
+        </div>
+      )}
+
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Sisa Budget" icon="account_balance_wallet"
           value={remaining < 0 ? `-${formatRupiah(Math.abs(remaining), true)}` : formatRupiah(remaining, true)}
           color={remaining < 0 ? "text-error" : "text-secondary"}
-          sub={`dari ${formatRupiah(income, true)}`}/>
+          sub={incomeSubLabel}/>
         <StatCard label="Pengeluaran" icon="trending_down"
           value={formatRupiah(totalSpent, true)} color="text-error"
           sub={`${pct}% dari penghasilan`}/>
@@ -310,7 +389,7 @@ export default function DashboardPage({ setTab }) {
             <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-widest mb-4">
               50/30/20 Rule
             </p>
-            <BudgetRings byCategory={byCategory} income={income} categories={categories}/>
+            <BudgetRings byCategory={byCategory} income={totalMonthlyIncome} categories={categories}/>
           </div>
         </section>
 

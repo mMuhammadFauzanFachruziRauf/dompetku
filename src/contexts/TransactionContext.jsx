@@ -7,10 +7,29 @@ const TransactionContext = createContext(null);
 const DEFAULT_INCOME = 0;
 const DEFAULT_SALARY_INFO = { amount: DEFAULT_INCOME, note: "" };
 
+const ROLLOVER_STORAGE_KEY = "__rollover__";
+
 const getMonthKey = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   return `${year}-${month}`;
+};
+
+const computeMonthBudgetTotals = (txList, year, month, resolveTransactionType) => {
+  let monthIncome = 0;
+  let monthExpenses = 0;
+
+  for (const tx of txList) {
+    const txDate = new Date(tx.tanggal);
+    if (txDate.getFullYear() !== year || txDate.getMonth() !== month) continue;
+
+    const txType = resolveTransactionType(tx);
+    const amount = Math.abs(Number(tx.nominal || 0));
+    if (txType === "pemasukan") monthIncome += amount;
+    else if (txType === "pengeluaran") monthExpenses += amount;
+  }
+
+  return { income: monthIncome, expenses: monthExpenses, leftover: monthIncome - monthExpenses };
 };
 
 const normalizeSalaryInfo = (info) => ({
@@ -418,6 +437,86 @@ export function TransactionProvider({ children }) {
       .reduce((s, t) => s + Math.abs(Number(t.nominal || 0)), 0);
   }, [transactions, resolveTransactionType]);
 
+  const previousMonthDate = useMemo(
+    () => new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1),
+    [selectedDate]
+  );
+
+  const previousMonthLeftover = useMemo(() => {
+    const { leftover } = computeMonthBudgetTotals(
+      allTransactions,
+      previousMonthDate.getFullYear(),
+      previousMonthDate.getMonth(),
+      resolveTransactionType
+    );
+    return leftover;
+  }, [allTransactions, previousMonthDate, resolveTransactionType]);
+
+  const budgetRollover = useMemo(
+    () => categoryBudgets?.[ROLLOVER_STORAGE_KEY] || {},
+    [categoryBudgets]
+  );
+
+  const rolloverAmount = useMemo(() => {
+    const raw = budgetRollover?.[selectedMonthKey];
+    return Number(raw) > 0 ? Number(raw) : 0;
+  }, [budgetRollover, selectedMonthKey]);
+
+  const isCurrentCalendarMonth = useMemo(() => {
+    const now = new Date();
+    return (
+      selectedDate.getFullYear() === now.getFullYear() &&
+      selectedDate.getMonth() === now.getMonth()
+    );
+  }, [selectedDate]);
+
+  const canClaimRollover = isCurrentCalendarMonth
+    && previousMonthLeftover > 0
+    && rolloverAmount === 0;
+
+  const claimBudgetRollover = async () => {
+    if (!user) return { error: "Belum login" };
+    if (!canClaimRollover) return { error: "Sisa budget bulan lalu tidak tersedia" };
+
+    const amount = Math.round(previousMonthLeftover);
+    if (amount <= 0) return { error: "Tidak ada sisa budget untuk ditarik" };
+
+    const { data: profile, error: fetchError } = await supabase
+      .from("profiles")
+      .select("category_budgets")
+      .eq("id", user.id)
+      .single();
+
+    if (fetchError && fetchError.code !== "PGRST116") return { error: fetchError.message };
+
+    const currentBudgets = profile?.category_budgets || {};
+    const currentRollover = currentBudgets[ROLLOVER_STORAGE_KEY] || {};
+    if (Number(currentRollover[selectedMonthKey]) > 0) {
+      return { error: "Sisa budget bulan lalu sudah ditarik" };
+    }
+
+    const nextBudgets = {
+      ...currentBudgets,
+      [ROLLOVER_STORAGE_KEY]: {
+        ...currentRollover,
+        [selectedMonthKey]: amount,
+      },
+    };
+
+    const { error: upsertError } = await supabase
+      .from("profiles")
+      .upsert({
+        id: user.id,
+        category_budgets: nextBudgets,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "id" });
+
+    if (upsertError) return { error: upsertError.message };
+
+    setCategoryBudgets(nextBudgets);
+    return { success: true, amount };
+  };
+
   const updateCurrentMonthSalary = async (newAmount, newNote = "", setOnboarded = false) => {
     if (!user) return { error: "Belum login" };
     const numericAmount = Number(newAmount);
@@ -747,8 +846,8 @@ export function TransactionProvider({ children }) {
     0
   );
 
-  // Baseline for budgets & 50/30/20 is now the dynamically-calculated `income`
-  const totalMonthlyIncome = income;
+  // Baseline for budgets & 50/30/20 includes optional rollover (no wallet impact)
+  const totalMonthlyIncome = income + rolloverAmount;
   const remaining = totalMonthlyIncome - totalSpent;
   const pct = totalMonthlyIncome > 0
     ? Math.max(0, Math.min(Math.round((totalSpent / totalMonthlyIncome) * 100), 100))
@@ -803,7 +902,9 @@ export function TransactionProvider({ children }) {
   const getBudgetProgress = useCallback(() => {
     if (!currentMonthCategoryBudgets || Object.keys(currentMonthCategoryBudgets).length === 0) return [];
 
-    return Object.entries(currentMonthCategoryBudgets).map(([category, limit]) => {
+    return Object.entries(currentMonthCategoryBudgets)
+      .filter(([category]) => category !== ROLLOVER_STORAGE_KEY)
+      .map(([category, limit]) => {
       const spent = byCategory[category] || 0;
       const remaining = limit - spent;
       const percentage = limit > 0 ? Math.round((spent / limit) * 100) : 0;
@@ -822,6 +923,12 @@ export function TransactionProvider({ children }) {
     loading,
     error,
     income,
+    totalMonthlyIncome,
+    rolloverAmount,
+    previousMonthLeftover,
+    canClaimRollover,
+    claimBudgetRollover,
+    isCurrentCalendarMonth,
     hasOnboarded,
     shortcuts,
     categoryBudgets,
