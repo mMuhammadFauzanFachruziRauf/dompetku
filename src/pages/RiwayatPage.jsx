@@ -6,13 +6,20 @@ import { downloadExcel }     from "../utils/exportExcel";
 import EditTransactionModal  from "../components/EditTransactionModal";
 
 const ALL = "Semua";
+const WALLET_ALL = "Semua Dompet";
 const TYPE_ALL = "Semua";
 const TYPE_INCOME = "Pemasukan";
 const TYPE_EXPENSE = "Pengeluaran";
 
+const pillBase = "flex-shrink-0 whitespace-nowrap text-[11px] font-bold px-3 py-1.5 rounded-full transition-all border";
+const pillInactive = "bg-surface-container/60 text-on-surface-variant border-outline-variant/30 hover:border-outline-variant/60 hover:text-on-surface";
+const filterScrollRow = "flex w-full min-w-0 flex-nowrap gap-2 overflow-x-auto overscroll-x-contain pb-2 no-scrollbar touch-pan-x [-webkit-overflow-scrolling:touch]";
+const filterScrollRowBleed = `${filterScrollRow} -mx-4 px-4 md:mx-0 md:px-0`;
+
 export default function RiwayatPage({ setTab }) {
-  const { transactions, transactionsRevision, categories, loading, deleteTransaction } = useTransaction();
+  const { transactions, transactionsRevision, categories, wallets, loading, deleteTransaction } = useTransaction();
   const [filterKat, setFilterKat] = useState(ALL);
+  const [filterWallet, setFilterWallet] = useState(WALLET_ALL);
   const [filterType, setFilterType] = useState(TYPE_ALL);
   const [search,    setSearch]    = useState("");
   const [deletingId, setDeletingId] = useState(null);
@@ -33,6 +40,21 @@ export default function RiwayatPage({ setTab }) {
     })),
   ];
 
+  const WALLET_OPTIONS = useMemo(() => [
+    { key: "all", value: WALLET_ALL, label: WALLET_ALL, icon: null },
+    ...wallets.map((w) => ({
+      key: w.id,
+      value: w.id,
+      label: w.name,
+      icon: w.icon,
+    })),
+  ], [wallets]);
+
+  const selectedWalletLabel = useMemo(() => {
+    if (filterWallet === WALLET_ALL) return null;
+    return wallets.find((w) => w.id === filterWallet)?.name || null;
+  }, [filterWallet, wallets]);
+
   // ── Filter ────────────────────────────────────────────────────────────────
   const filtered = useMemo(() => displayTransactions.filter(tx => {
     const matchKat = filterKat === ALL || tx.kategori === filterKat;
@@ -40,8 +62,11 @@ export default function RiwayatPage({ setTab }) {
       .toLowerCase().includes(search.toLowerCase());
     const matchType = filterType === TYPE_ALL
       || (filterType === TYPE_INCOME ? tx.nominal < 0 : tx.nominal > 0);
-    return matchKat && matchSearch && matchType;
-  }), [displayTransactions, filterKat, search, filterType]);
+    const matchWallet = filterWallet === WALLET_ALL
+      || tx.wallet_id === filterWallet
+      || tx.to_wallet_id === filterWallet;
+    return matchKat && matchSearch && matchType && matchWallet;
+  }), [displayTransactions, filterKat, filterWallet, search, filterType]);
 
   const totalFilteredExpense = filtered.filter(t => t.nominal > 0).reduce((s,t) => s + t.nominal, 0);
 
@@ -69,7 +94,7 @@ export default function RiwayatPage({ setTab }) {
   };
 
   return (
-    <div className="px-4 md:px-8 pt-4 md:pt-6 pb-6 max-w-[900px] mx-auto space-y-4">
+    <div className="px-4 md:px-8 pt-4 md:pt-6 pb-6 max-w-[900px] mx-auto space-y-4 min-w-0">
 
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -98,47 +123,67 @@ export default function RiwayatPage({ setTab }) {
           className="w-full bg-surface-container/70 border border-outline-variant/30 rounded-xl pl-11 pr-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-secondary/50 focus:ring-1 focus:ring-secondary/20 transition-all"/>
       </div>
 
-      {/* Type filter: Semua / Pemasukan / Pengeluaran */}
-      <div className="flex gap-2">
-        <button onClick={() => setFilterType(TYPE_ALL)}
-          className={`flex-shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full transition-all border ${
-            filterType === TYPE_ALL ? "bg-surface-container/80 text-on-surface" : "bg-surface-container/60 text-on-surface-variant border-outline-variant/30 hover:border-outline-variant/60 hover:text-on-surface"
-          }`}>
-          Semua
-        </button>
-
-        <button onClick={() => setFilterType(TYPE_INCOME)}
-          className={`flex-shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full transition-all border ${
-            filterType === TYPE_INCOME ? "bg-emerald-500 text-slate-900 border-emerald-500" : "bg-surface-container/60 text-on-surface-variant border-outline-variant/30 hover:border-outline-variant/60 hover:text-on-surface"
-          }`}>
-          Pemasukan
-        </button>
-
-        <button onClick={() => setFilterType(TYPE_EXPENSE)}
-          className={`flex-shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full transition-all border ${
-            filterType === TYPE_EXPENSE ? "bg-error text-slate-900 border-error" : "bg-surface-container/60 text-on-surface-variant border-outline-variant/30 hover:border-outline-variant/60 hover:text-on-surface"
-          }`}>
-          Pengeluaran
-        </button>
-      </div>
-
-      {/* Filter chips — horizontal scroll */}
-      <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-        {CAT_OPTIONS.map((catOpt) => {
-          const isActive = filterKat === catOpt.value;
-          const m = catOpt.value !== ALL ? getMeta(catOpt.value, categories) : null;
-          return (
-            <button key={catOpt.key} onClick={() => setFilterKat(catOpt.value)}
-              className={`flex-shrink-0 flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full transition-all border ${
-                isActive
-                  ? "bg-emerald-500 text-slate-900 border-emerald-500"
-                  : "bg-surface-container/60 text-on-surface-variant border-outline-variant/30 hover:border-outline-variant/60 hover:text-on-surface"
-              }`}>
-              {m && <Icon name={m.icon} className={`${isActive ? "" : m.color}`} sizeClass="text-[12px]" />}
-              {catOpt.label}
+      {/* Filters */}
+      <div className="space-y-3 min-w-0">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2 px-0.5">Tipe</p>
+          <div className={filterScrollRow}>
+            <button onClick={() => setFilterType(TYPE_ALL)}
+              className={`${pillBase} ${filterType === TYPE_ALL ? "bg-surface-container/80 text-on-surface border-outline-variant/40" : pillInactive}`}>
+              Semua
             </button>
-          );
-        })}
+            <button onClick={() => setFilterType(TYPE_INCOME)}
+              className={`${pillBase} ${filterType === TYPE_INCOME ? "bg-emerald-500 text-slate-900 border-emerald-500" : pillInactive}`}>
+              Pemasukan
+            </button>
+            <button onClick={() => setFilterType(TYPE_EXPENSE)}
+              className={`${pillBase} ${filterType === TYPE_EXPENSE ? "bg-error text-slate-900 border-error" : pillInactive}`}>
+              Pengeluaran
+            </button>
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2 px-0.5">Kategori</p>
+          <div className={filterScrollRowBleed}>
+            {CAT_OPTIONS.map((catOpt) => {
+              const isActive = filterKat === catOpt.value;
+              const m = catOpt.value !== ALL ? getMeta(catOpt.value, categories) : null;
+              return (
+                <button key={catOpt.key} onClick={() => setFilterKat(catOpt.value)}
+                  className={`${pillBase} flex items-center gap-1.5 ${
+                    isActive ? "bg-emerald-500 text-slate-900 border-emerald-500" : pillInactive
+                  }`}>
+                  {m && <Icon name={m.icon} className={`${isActive ? "" : m.color}`} sizeClass="text-[12px]" />}
+                  {catOpt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2 px-0.5">Dompet</p>
+          <div className={filterScrollRowBleed}>
+            {WALLET_OPTIONS.map((walletOpt) => {
+              const isActive = filterWallet === walletOpt.value;
+              return (
+                <button key={walletOpt.key} onClick={() => setFilterWallet(walletOpt.value)}
+                  className={`${pillBase} flex items-center gap-1.5 ${
+                    isActive ? "bg-primary/90 text-slate-900 border-primary" : pillInactive
+                  }`}>
+                  {walletOpt.icon && (
+                    <span className="text-[12px] leading-none">{walletOpt.icon}</span>
+                  )}
+                  {!walletOpt.icon && walletOpt.value === WALLET_ALL && (
+                    <Icon name="account_balance_wallet" sizeClass="text-[12px]" />
+                  )}
+                  {walletOpt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Summary strip */}
@@ -146,7 +191,9 @@ export default function RiwayatPage({ setTab }) {
         <div className="flex items-center gap-2">
           <Icon name="receipt_long" sizeClass="text-[16px] text-on-surface-variant" />
           <p className="text-xs font-semibold text-on-surface-variant">
-            {filtered.length} transaksi{filterKat !== ALL && ` · ${filterKat}`}
+            {filtered.length} transaksi
+            {filterKat !== ALL && ` · ${filterKat}`}
+            {selectedWalletLabel && ` · ${selectedWalletLabel}`}
           </p>
         </div>
         <p className="text-sm font-bold text-error">-{formatRupiah(totalFilteredExpense)}</p>
@@ -168,9 +215,11 @@ export default function RiwayatPage({ setTab }) {
           <Icon name="folder_open" sizeClass="text-[48px] text-on-surface-variant/30 mb-4" />
           <p className="text-sm font-semibold text-on-surface-variant">Tidak ada transaksi</p>
           <p className="text-xs text-on-surface-variant/60 mt-1">
-            {search || filterKat !== ALL ? "Coba ganti filter atau kata pencarian" : "Belum ada transaksi bulan ini"}
+            {search || filterKat !== ALL || filterWallet !== WALLET_ALL
+              ? "Coba ganti filter atau kata pencarian"
+              : "Belum ada transaksi bulan ini"}
           </p>
-          {!search && filterKat === ALL && (
+          {!search && filterKat === ALL && filterWallet === WALLET_ALL && (
             <button onClick={() => setTab("catat")}
               className="mt-5 px-5 py-2.5 bg-emerald-500 text-slate-900 text-xs font-bold rounded-xl hover:bg-emerald-400 transition-all">
               + Catat Sekarang
