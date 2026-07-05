@@ -1,12 +1,96 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTransaction } from "../contexts/TransactionContext";
-import { parseSmartInput, getMeta, formatRupiah } from "../utils/helpers";
+import {
+  parseSmartInput,
+  inferCategoryFromText,
+  checkSpendingAnomaly,
+  getMeta,
+  formatRupiah,
+} from "../utils/helpers";
 import Icon from "../components/ui/Icon";
 import { useSearchParams } from "react-router-dom";
 
+function BudgetWarningModal({ open, amount, remaining, totalMonthlyIncome, onConfirm, onCancel }) {
+  if (!open) return null;
+
+  const projectedRemaining = remaining - amount;
+  const pctOfIncome = totalMonthlyIncome > 0
+    ? Math.round((amount / totalMonthlyIncome) * 100)
+    : null;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Tutup"
+        onClick={onCancel}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      />
+      <div className="relative w-full max-w-md glass-card border border-orange-500/30 bg-surface-container-high/95 p-6 shadow-2xl animate-slide-up overflow-hidden">
+        <div className="absolute top-0 right-0 w-40 h-40 bg-orange-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col items-center text-center">
+          <div className="w-16 h-16 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center mb-4">
+            <Icon name="savings" sizeClass="text-[32px] text-orange-400" />
+          </div>
+
+          <h3 className="text-lg font-bold text-on-surface mb-2">Belanja Besar Terdeteksi</h3>
+          <p className="text-sm text-on-surface-variant leading-relaxed mb-4">
+            Wah, belanjanya lumayan besar hari ini. Yakin udah sesuai budget 50/30/20 kamu?
+          </p>
+
+          <div className="w-full rounded-xl bg-surface-dim border border-outline-variant/30 p-4 space-y-2 mb-6 text-left">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-on-surface-variant">Nominal transaksi</span>
+              <span className="font-bold text-error">{formatRupiah(amount)}</span>
+            </div>
+            {pctOfIncome !== null && pctOfIncome >= 20 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-on-surface-variant">Dari penghasilan bulan ini</span>
+                <span className="font-bold text-orange-400">{pctOfIncome}%</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-on-surface-variant">Sisa budget setelah ini</span>
+              <span className={`font-bold ${projectedRemaining < 0 ? "text-error" : "text-secondary"}`}>
+                {projectedRemaining < 0 ? "-" : ""}{formatRupiah(Math.abs(projectedRemaining))}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex w-full gap-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 py-3 rounded-xl border border-outline-variant/40 text-sm font-bold text-on-surface-variant hover:bg-surface-container-high transition-all"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={() => onConfirm?.()}
+              className="flex-1 py-3 rounded-xl bg-emerald-500 text-slate-900 text-sm font-bold hover:bg-emerald-400 transition-all active:scale-[0.98]"
+            >
+              Tetap Catat
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CatatPage({ setTab }) {
   const [searchParams] = useSearchParams();
-  const { addTransaction, categories, shortcuts, wallets, walletBalances } = useTransaction();
+  const {
+    addTransaction,
+    categories,
+    shortcuts,
+    wallets,
+    walletBalances,
+    totalMonthlyIncome,
+    remaining,
+  } = useTransaction();
 
   // Smart input state
   const [smartText,    setSmartText]    = useState("");
@@ -25,6 +109,9 @@ export default function CatatPage({ setTab }) {
   const [toWalletId, setToWalletId] = useState("");
   const [manLoading, setManLoading] = useState(false);
   const [toast, setToast] = useState(null);
+  const [categoryManuallySet, setCategoryManuallySet] = useState(false);
+  const [autoInferredCategory, setAutoInferredCategory] = useState(null);
+  const [warningModal, setWarningModal] = useState(null);
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok });
@@ -38,7 +125,7 @@ export default function CatatPage({ setTab }) {
     setSmartPreview(val.trim() ? parseSmartInput(val, categories) : null);
   };
 
-  const handleSmartSubmit = async () => {
+  const submitSmartTransaction = async () => {
     const parsed = parseSmartInput(smartText, categories);
     if (!parsed) { setSmartError("Format tidak dikenali. Contoh: 'Makan siang 50000'"); return; }
     setSmartLoading(true);
@@ -50,8 +137,52 @@ export default function CatatPage({ setTab }) {
     setTimeout(() => setTab("dashboard"), 800);
   };
 
-  // Manual form handler
-  const handleManualSubmit = async () => {
+  const handleSmartSubmit = () => {
+    const parsed = parseSmartInput(smartText, categories);
+    if (!parsed) { setSmartError("Format tidak dikenali. Contoh: 'Makan siang 50000'"); return; }
+
+    if (!parsed.isIncome) {
+      const anomaly = checkSpendingAnomaly(parsed.nominal, totalMonthlyIncome, remaining);
+      if (anomaly) {
+        setWarningModal({
+          amount: parsed.nominal,
+          onConfirm: () => {
+            setWarningModal(null);
+            submitSmartTransaction();
+          },
+        });
+        return;
+      }
+    }
+
+    submitSmartTransaction();
+  };
+
+  const applyAutoCategory = useCallback((text, currentJenis) => {
+    if (currentJenis !== "Pengeluaran" && currentJenis !== "Pemasukan") return;
+    const inferred = inferCategoryFromText(text, categories, { jenis: currentJenis });
+    if (inferred) {
+      setKategori(inferred.category);
+      setAutoInferredCategory(inferred.category);
+    } else {
+      setAutoInferredCategory(null);
+    }
+  }, [categories]);
+
+  const handleCatatanChange = (val) => {
+    setCatatan(val);
+    if (!categoryManuallySet && (jenis === "Pengeluaran" || jenis === "Pemasukan")) {
+      applyAutoCategory(val, jenis);
+    }
+  };
+
+  const handleKategoriChange = (val) => {
+    setKategori(val);
+    setCategoryManuallySet(true);
+    setAutoInferredCategory(null);
+  };
+
+  const executeManualSubmit = async () => {
     const nom = parseFloat(String(nominal).replace(/\./g,"").replace(/,/g,""));
     if (!nom || nom <= 0) { showToast("❌ Nominal harus diisi dan lebih dari 0", false); return; }
     if (isInsufficientBalance) { showToast("❌ Saldo tidak mencukupi di dompet ini!", false); return; }
@@ -118,8 +249,45 @@ export default function CatatPage({ setTab }) {
     } else if (!isTransfer) {
       setKategori("Lainnya");
     }
+    setCategoryManuallySet(false);
+    setAutoInferredCategory(null);
 
     setTimeout(() => setTab("dashboard"), isIncome ? 1400 : 800);
+  };
+
+  const handleManualSubmit = () => {
+    const nom = parseFloat(String(nominal).replace(/\./g,"").replace(/,/g,""));
+    if (!nom || nom <= 0) { showToast("❌ Nominal harus diisi dan lebih dari 0", false); return; }
+    if (isInsufficientBalance) { showToast("❌ Saldo tidak mencukupi di dompet ini!", false); return; }
+    if (jenis === "Transfer") {
+      if (!fromWalletId || !toWalletId) {
+        showToast("❌ Pilih dompet asal dan tujuan terlebih dahulu", false);
+        return;
+      }
+      if (fromWalletId === toWalletId) {
+        showToast("❌ Dompet asal dan tujuan tidak boleh sama", false);
+        return;
+      }
+    } else if (!walletId) {
+      showToast("❌ Pilih dompet / rekening terlebih dahulu", false);
+      return;
+    }
+
+    if (jenis === "Pengeluaran") {
+      const anomaly = checkSpendingAnomaly(nom, totalMonthlyIncome, remaining);
+      if (anomaly) {
+        setWarningModal({
+          amount: nom,
+          onConfirm: () => {
+            setWarningModal(null);
+            executeManualSubmit();
+          },
+        });
+        return;
+      }
+    }
+
+    executeManualSubmit();
   };
 
   const preview = smartPreview;
@@ -135,6 +303,8 @@ export default function CatatPage({ setTab }) {
   // Keep selected category in sync when categories or jenis change
   useEffect(() => {
     if (!categories || categories.length === 0) return;
+    setCategoryManuallySet(false);
+    setAutoInferredCategory(null);
     if (jenis === "Pemasukan") {
       const incomeCats = categories.filter(c => c.type === "Income");
       if (incomeCats.length > 0) setKategori(incomeCats[0].name);
@@ -197,6 +367,15 @@ export default function CatatPage({ setTab }) {
 
   return (
     <div className="px-4 md:px-8 pt-4 md:pt-6 pb-6 max-w-[800px] mx-auto space-y-5">
+      <BudgetWarningModal
+        open={!!warningModal}
+        amount={warningModal?.amount ?? 0}
+        remaining={remaining}
+        totalMonthlyIncome={totalMonthlyIncome}
+        onConfirm={warningModal?.onConfirm}
+        onCancel={() => setWarningModal(null)}
+      />
+
       {/* Toast */}
       {toast && (
         <div className={`fixed top-16 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl text-sm font-semibold shadow-2xl animate-slide-up ${
@@ -479,7 +658,35 @@ export default function CatatPage({ setTab }) {
           )}
         </div>
 
-        {/* Kategori: show for both Pengeluaran and Pemasukan, but filtered by type */}
+        {/* Nama transaksi — drives smart category */}
+        {(jenis === "Pengeluaran" || jenis === "Pemasukan") && (
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
+              Nama Transaksi / Catatan
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
+                <Icon name="notes" sizeClass="text-[18px]" />
+              </span>
+              <input
+                type="text"
+                value={catatan}
+                onChange={(e) => handleCatatanChange(e.target.value)}
+                placeholder="Cth: Nasi Padang, Bensin, Skincare..."
+                className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl pl-11 pr-4 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all placeholder:text-on-surface-variant/40"
+              />
+            </div>
+            {autoInferredCategory && !categoryManuallySet && (
+              <p className="mt-2 text-xs text-emerald-400 flex items-center gap-1.5">
+                <Icon name="auto_awesome" sizeClass="text-[14px]" />
+                Kategori otomatis: <span className="font-bold">{autoInferredCategory}</span>
+                <span className="text-on-surface-variant">— bisa diubah manual</span>
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Kategori */}
         {(jenis === "Pengeluaran" || jenis === "Pemasukan") && (
           <div>
             <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
@@ -490,7 +697,8 @@ export default function CatatPage({ setTab }) {
                 <Icon name={getMeta(kategori, categories).icon} sizeClass="text-[18px]" />
               </span>
               <select
-                value={kategori} onChange={e => setKategori(e.target.value)}
+                value={kategori}
+                onChange={(e) => handleKategoriChange(e.target.value)}
                 className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl pl-11 pr-10 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all appearance-none"
               >
                 {jenis === "Pemasukan" ? (
@@ -517,24 +725,6 @@ export default function CatatPage({ setTab }) {
             </div>
           </div>
         )}
-
-        {/* Catatan */}
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
-            Catatan <span className="normal-case font-normal">(opsional)</span>
-          </label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
-              <Icon name="notes" sizeClass="text-[18px]" />
-            </span>
-            <input
-              type="text" value={catatan}
-              onChange={e => setCatatan(e.target.value)}
-              placeholder="Keterangan singkat..."
-              className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl pl-11 pr-4 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all placeholder:text-on-surface-variant/40"
-            />
-          </div>
-        </div>
 
         {/* Submit */}
         <button

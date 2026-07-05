@@ -34,6 +34,70 @@ export function parseAmount(str) {
   return parseFloat(str.replace(/\./g, "").replace(/,/g, "")) || 0;
 }
 
+const LOCALIZED_CATEGORY_PATTERNS = [
+  { category: "Makan", patterns: ["nasi padang", "mie balap", "mcd", "mcdonalds", "mcdonald", "padang", "warteg", "indomie", "kfc", "pizza hut"] },
+  { category: "Kendaraan", patterns: ["bensin", "minyak", "maxim", "grab", "gojek", "parkir", "tol", "ojol"] },
+  { category: "Persediaan", patterns: ["skincare", "cushion", "makeup", "kosmetik", "parfum", "deterjen", "tissue"] },
+  { category: "Belanja", patterns: ["shopee", "tokopedia", "lazada", "uniqlo", "zara"] },
+  { category: "Hiburan", patterns: ["netflix", "spotify", "bioskop", "nonton", "game"] },
+];
+
+/**
+ * Rule-based category inference from free-text description.
+ * Returns { category, source } or null.
+ */
+export function inferCategoryFromText(text, categories = [], options = {}) {
+  const { jenis = "Pengeluaran" } = options;
+  const lower = (text || "").trim().toLowerCase();
+  if (!lower) return null;
+
+  const eligible = categories.filter((c) => {
+    if (jenis === "Pemasukan") return c.type === "Income";
+    if (jenis === "Pengeluaran") return c.type !== "Income";
+    return c.type !== "Income";
+  });
+  if (eligible.length === 0) return null;
+
+  const categoryExists = (name) => eligible.some((c) => c.name === name);
+
+  for (const { category, patterns } of LOCALIZED_CATEGORY_PATTERNS) {
+    if (!categoryExists(category)) continue;
+    if (patterns.some((p) => lower.includes(p))) {
+      return { category, source: "pattern" };
+    }
+  }
+
+  for (const cat of eligible) {
+    if (!cat.keywords) continue;
+    const keywords = cat.keywords.split(",").map((k) => k.trim().toLowerCase()).filter(Boolean);
+    const words = lower.split(/\s+/);
+
+    let matched = keywords.some((kw) => lower.includes(kw));
+    if (!matched) {
+      matched = words.some(
+        (w) => w.length >= 4 && keywords.some((kw) => kw.startsWith(w) || w.startsWith(kw))
+      );
+    }
+    if (matched) return { category: cat.name, source: "keyword" };
+  }
+
+  return null;
+}
+
+export function checkSpendingAnomaly(amount, totalMonthlyIncome, remaining) {
+  const nom = Number(amount) || 0;
+  if (nom <= 0) return null;
+
+  const triggers = [];
+  if (totalMonthlyIncome > 0 && nom >= totalMonthlyIncome * 0.2) {
+    triggers.push("large_single");
+  }
+  if (remaining - nom < 0) {
+    triggers.push("negative_budget");
+  }
+  return triggers.length > 0 ? triggers : null;
+}
+
 export function parseSmartInput(text, categories = []) {
   const trimmed = text.trim();
   const match   = trimmed.match(/^(.*?)\s*([\d][\d.,]*(?:k|jt)?)\s*$/i);
@@ -53,34 +117,17 @@ export function parseSmartInput(text, categories = []) {
   if (isIncome) {
     return { nominal: -nominal, kategori: "Pemasukan Tambahan", catatan: desc || "Pemasukan Tambahan", isIncome: true };
   }
-  
-  // Default fallback category if no match
+
   let kategori = "Lainnya";
-  if (categories.some(c => c.name === "Keperluan")) {
+  if (categories.some((c) => c.name === "Keperluan")) {
     kategori = "Keperluan";
   }
-  
-  // Find match in dynamic categories
-  for (const cat of categories) {
-    if (!cat.keywords) continue;
-    const keywords = cat.keywords.split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
-    const words = lower.split(/\s+/);
-    
-    // 1. Direct includes match (e.g., "makan siang" includes "makan")
-    let matched = keywords.some(kw => lower.includes(kw));
-    
-    // 2. Partial typo match (e.g., user typed "bensi", keyword is "bensin")
-    // Only check words >= 4 chars to prevent false positives with short words
-    if (!matched) {
-      matched = words.some(w => w.length >= 4 && keywords.some(kw => kw.startsWith(w) || w.startsWith(kw)));
-    }
 
-    if (matched) {
-      kategori = cat.name;
-      break;
-    }
+  const inferred = inferCategoryFromText(desc, categories, { jenis: "Pengeluaran" });
+  if (inferred) {
+    kategori = inferred.category;
   }
-  
+
   return { nominal, kategori, catatan: desc || kategori, isIncome: false };
 }
 
