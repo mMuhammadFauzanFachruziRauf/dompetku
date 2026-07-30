@@ -11,6 +11,8 @@ import RiwayatPage                      from "./pages/RiwayatPage";
 import StatistikPage                    from "./pages/StatistikPage";
 import KategoriPage                     from "./pages/KategoriPage";
 import BudgetPage                       from "./pages/BudgetPage";
+import SavingsGoalsPage                 from "./pages/SavingsGoalsPage"; // Import the new page
+import AutoSplitSettingsPage            from "./pages/AutoSplitSettingsPage";
 import Icon from "./components/ui/Icon";
 
 // ── Loading Screen ─────────────────────────────────────────────────────────────
@@ -35,7 +37,8 @@ function ProtectedApp() {
   // Get saved tab from localStorage or default to dashboard
   const getInitialTab = () => {
     const saved = localStorage.getItem('activePage');
-    return saved && ['dashboard', 'catat', 'budget', 'riwayat', 'statistik', 'kategori'].includes(saved) 
+    // Add 'celengan' to the list of valid tabs
+    return saved && ['dashboard', 'catat', 'budget', 'riwayat', 'statistik', 'kategori', 'celengan', 'autosplit'].includes(saved) 
       ? saved 
       : 'dashboard';
   };
@@ -56,6 +59,8 @@ function ProtectedApp() {
       case "riwayat":    return <RiwayatPage     setTab={handleTabChange} />;
       case "statistik":  return <StatistikPage   setTab={handleTabChange} />;
       case "kategori":   return <KategoriPage    setTab={handleTabChange} />;
+      case "celengan":   return <SavingsGoalsPage setTab={handleTabChange} />; // Add case for the new page
+      case "autosplit":  return <AutoSplitSettingsPage setTab={handleTabChange} />;
       default:           return <DashboardPage  setTab={handleTabChange} />;
     }
   };

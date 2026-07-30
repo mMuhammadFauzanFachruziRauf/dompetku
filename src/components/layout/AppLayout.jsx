@@ -11,6 +11,8 @@ const NAV_ITEMS = [
   { key: "riwayat",   label: "Riwayat",      icon: "receipt_long",           iconFilled: "receipt_long"          },
   { key: "statistik", label: "Statistik",    icon: "bar_chart",              iconFilled: "bar_chart"             },
   { key: "budget",    label: "Budget",       icon: "account_balance_wallet", iconFilled: "account_balance_wallet" },
+  { key: "celengan",  label: "Celengan",     icon: "savings",                iconFilled: "savings"               },
+  { key: "autosplit", label: "Auto-Split",   icon: "call_split",             iconFilled: "call_split"            },
 ];
 
 const MonthSelector = () => {

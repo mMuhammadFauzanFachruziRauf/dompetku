@@ -9,6 +9,8 @@ import {
 } from "../utils/helpers";
 import Icon from "../components/ui/Icon";
 import { useSearchParams } from "react-router-dom";
+import { calculateAutoSplit } from "../utils/autoSplitLogic";
+import AutoSplitPreviewModal from "../components/AutoSplitPreviewModal";
 
 function BudgetWarningModal({ open, amount, remaining, totalMonthlyIncome, onConfirm, onCancel }) {
   if (!open) return null;
@@ -90,7 +92,29 @@ export default function CatatPage({ setTab }) {
     walletBalances,
     totalMonthlyIncome,
     remaining,
+    autoSplitRules,
+    executeAutoSplit,
+    savingsGoals,
   } = useTransaction();
+
+  // Auto Split state
+  const [autoSplitModal, setAutoSplitModal] = useState(null);
+  const [autoSplitExecuting, setAutoSplitExecuting] = useState(false);
+
+  const triggerAutoSplitModal = (nominalAmount, executeSaveFn) => {
+    if (autoSplitRules && autoSplitRules.length > 0) {
+      const splitResult = calculateAutoSplit(nominalAmount, autoSplitRules, wallets, savingsGoals);
+      setAutoSplitModal({
+        ...splitResult,
+        incomeAmount: nominalAmount,
+        onConfirm: () => {
+          executeSaveFn(true, splitResult.allocations);
+        }
+      });
+      return true;
+    }
+    return false;
+  };
 
   // Smart input state
   const [smartText,    setSmartText]    = useState("");
@@ -125,12 +149,26 @@ export default function CatatPage({ setTab }) {
     setSmartPreview(val.trim() ? parseSmartInput(val, categories) : null);
   };
 
-  const submitSmartTransaction = async () => {
+  const submitSmartTransaction = async (isAutoSplitConfirmed = false, allocations = []) => {
     const parsed = parseSmartInput(smartText, categories);
     if (!parsed) { setSmartError("Format tidak dikenali. Contoh: 'Makan siang 50000'"); return; }
-    setSmartLoading(true);
-    const { error } = await addTransaction(parsed);
+    
+    if (isAutoSplitConfirmed) setAutoSplitExecuting(true);
+    else setSmartLoading(true);
+
+    let error = null;
+    if (isAutoSplitConfirmed) {
+      const payload = { ...parsed, nominal: -Math.abs(parsed.nominal) };
+      const res = await executeAutoSplit(payload, allocations);
+      error = res.error;
+    } else {
+      const res = await addTransaction(parsed);
+      error = res.error;
+    }
+
     setSmartLoading(false);
+    setAutoSplitExecuting(false);
+    setAutoSplitModal(null);
     if (error) { setSmartError(error); return; }
     showToast(`✅ Dicatat ke ${parsed.kategori}!`);
     setSmartText(""); setSmartPreview(null); setSmartError("");
@@ -141,7 +179,9 @@ export default function CatatPage({ setTab }) {
     const parsed = parseSmartInput(smartText, categories);
     if (!parsed) { setSmartError("Format tidak dikenali. Contoh: 'Makan siang 50000'"); return; }
 
-    if (!parsed.isIncome) {
+    if (parsed.isIncome) {
+      if (triggerAutoSplitModal(Math.abs(parsed.nominal), submitSmartTransaction)) return;
+    } else {
       const anomaly = checkSpendingAnomaly(parsed.nominal, totalMonthlyIncome, remaining);
       if (anomaly) {
         setWarningModal({
@@ -182,7 +222,7 @@ export default function CatatPage({ setTab }) {
     setAutoInferredCategory(null);
   };
 
-  const executeManualSubmit = async () => {
+  const executeManualSubmit = async (isAutoSplitConfirmed = false, allocations = []) => {
     const nom = parseFloat(String(nominal).replace(/\./g,"").replace(/,/g,""));
     if (!nom || nom <= 0) { showToast("❌ Nominal harus diisi dan lebih dari 0", false); return; }
     if (isInsufficientBalance) { showToast("❌ Saldo tidak mencukupi di dompet ini!", false); return; }
@@ -210,7 +250,7 @@ export default function CatatPage({ setTab }) {
     const [y, m, d] = tanggal.split("-");
     const dateObj = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
     
-    const { error } = await addTransaction({ 
+    const payload = { 
       nominal: finalNominal, 
       kategori: finalKat, 
       catatan: catatan || finalKat,
@@ -218,8 +258,23 @@ export default function CatatPage({ setTab }) {
       jenis: isTransfer ? "transfer" : (isIncome ? "pemasukan" : "pengeluaran"),
       wallet_id: isTransfer ? fromWalletId : walletId,
       to_wallet_id: isTransfer ? toWalletId : null,
-    });
+    };
+
+    if (isAutoSplitConfirmed) setAutoSplitExecuting(true);
+    else setManLoading(true);
+
+    let error = null;
+    if (isAutoSplitConfirmed) {
+      const res = await executeAutoSplit(payload, allocations);
+      error = res.error;
+    } else {
+      const res = await addTransaction(payload);
+      error = res.error;
+    }
+
     setManLoading(false);
+    setAutoSplitExecuting(false);
+    setAutoSplitModal(null);
     if (error) { showToast(`❌ ${error}`, false); return; }
 
     // Success notification (use clearer message for Pemasukan)
@@ -271,6 +326,10 @@ export default function CatatPage({ setTab }) {
     } else if (!walletId) {
       showToast("❌ Pilih dompet / rekening terlebih dahulu", false);
       return;
+    }
+
+    if (jenis === "Pemasukan") {
+      if (triggerAutoSplitModal(nom, executeManualSubmit)) return;
     }
 
     if (jenis === "Pengeluaran") {
@@ -374,6 +433,18 @@ export default function CatatPage({ setTab }) {
         totalMonthlyIncome={totalMonthlyIncome}
         onConfirm={warningModal?.onConfirm}
         onCancel={() => setWarningModal(null)}
+      />
+
+      <AutoSplitPreviewModal
+        open={!!autoSplitModal}
+        incomeAmount={autoSplitModal?.incomeAmount ?? 0}
+        allocations={autoSplitModal?.allocations ?? []}
+        isValid={autoSplitModal?.isValid ?? true}
+        remaining={autoSplitModal?.remaining ?? 0}
+        error={autoSplitModal?.error}
+        onConfirm={autoSplitModal?.onConfirm}
+        onCancel={() => setAutoSplitModal(null)}
+        isExecuting={autoSplitExecuting}
       />
 
       {/* Toast */}

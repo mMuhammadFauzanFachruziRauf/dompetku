@@ -9,9 +9,11 @@ function fmt(n) {
 const NAV_ITEMS = [
   { key: "dashboard", label: "Beranda",   icon: DashIcon  },
   { key: "catat",     label: "Catat",     icon: PenIcon   },
+  { key: "celengan",  label: "Celengan",  icon: SavingsIcon },
   { key: "riwayat",   label: "Riwayat",   icon: ListIcon  },
   { key: "statistik", label: "Statistik", icon: ChartIcon },
   { key: "budget",    label: "Budget",    icon: WalletIcon },
+  { key: "autosplit", label: "Auto-Split",icon: SplitIcon },
 ];
 
 export default function Sidebar({ tab, setTab }) {
@@ -144,7 +146,7 @@ function DashIcon({ active }) {
       <rect x="3" y="3" width="7" height="7" rx="1"/>
       <rect x="14" y="3" width="7" height="7" rx="1"/>
       <rect x="3" y="14" width="7" height="7" rx="1"/>
-      <rect x="14" y="14" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7"rx="1"/>
     </svg>
   );
 }
@@ -153,6 +155,15 @@ function PenIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+    </svg>
+  );
+}
+
+function SavingsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 10v2h10v-2M8 7.5c0-1.1.9-2 2-2h4a2 2 0 0 1 2 2v0M12 12v5m-4.5-2.5.9.9 2.1-2.1" />
+      <path d="M3.5 8.5a1.5 1.5 0 0 0-1.5 1.5v7a1.5 1.5 0 0 0 1.5 1.5h17a1.5 1.5 0 0 0 1.5-1.5v-7a1.5 1.5 0 0 0-1.5-1.5h-17z"/>
     </svg>
   );
 }
@@ -195,6 +206,14 @@ function LogoutIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
+    </svg>
+  );
+}
+
+function SplitIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M14 4l2.29 2.29-2.88 2.88 1.42 1.42 2.88-2.88L20 10V4zm-4 0H4v6l2.29-2.29 4.71 4.7V20h2v-8.41l-5.29-5.3z"/>
     </svg>
   );
 }

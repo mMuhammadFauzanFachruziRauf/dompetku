@@ -2,7 +2,10 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTransaction } from "../contexts/TransactionContext";
 import { formatRupiah, formatDate, getMeta } from "../utils/helpers";
 import Icon from "../components/ui/Icon";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import RecentAutoSplitCard from "../components/RecentAutoSplitCard";
+import { calculateAutoSplit } from "../utils/autoSplitLogic";
+import AutoSweepModal from "../components/AutoSweepModal";
 
 function OnboardingBanner({ selectedDate, markOnboarded }) {
   const monthName = selectedDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
@@ -184,10 +187,34 @@ export default function DashboardPage({ setTab }) {
     wallets,
     walletBalances,
     getBudgetProgress,
+    autoSplitRules,
+    savingsGoals,
   } = useTransaction();
 
   const [claimingRollover, setClaimingRollover] = useState(false);
   const [rolloverMessage, setRolloverMessage] = useState(null);
+  const [isAutoSweepOpen, setIsAutoSweepOpen] = useState(false);
+
+  // Find the last income transaction
+  const lastIncomeTx = useMemo(() => {
+    return transactions.find(t => {
+      const rawJenis = typeof t?.jenis === "string" ? t.jenis.toLowerCase() : "";
+      if (rawJenis === "pemasukan") return true;
+      const cat = categories.find(c => c.name === t.kategori);
+      if (cat?.type === "Income") return true;
+      return Number(t?.nominal || 0) < 0;
+    });
+  }, [transactions, categories]);
+
+  const lastSplitData = useMemo(() => {
+    if (!lastIncomeTx || !autoSplitRules || autoSplitRules.length === 0) return null;
+    const nominal = Math.abs(Number(lastIncomeTx.nominal || 0));
+    const result = calculateAutoSplit(nominal, autoSplitRules, wallets, savingsGoals);
+    return {
+      incomeTx: lastIncomeTx,
+      allocations: result.allocations
+    };
+  }, [lastIncomeTx, autoSplitRules, wallets, savingsGoals]);
 
   const now = new Date();
   const isCurrentMonth = isCurrentCalendarMonth;
@@ -288,19 +315,33 @@ export default function DashboardPage({ setTab }) {
         </div>
       )}
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Sisa Budget" icon="account_balance_wallet"
-          value={remaining < 0 ? `-${formatRupiah(Math.abs(remaining), true)}` : formatRupiah(remaining, true)}
-          color={remaining < 0 ? "text-error" : "text-secondary"}
-          sub={incomeSubLabel}/>
-        <StatCard label="Pengeluaran" icon="trending_down"
-          value={formatRupiah(totalSpent, true)} color="text-error"
-          sub={`${pct}% dari penghasilan`}/>
-        <StatCard label="Transaksi" icon="receipt_long"
-          value={`${transactions.length}x`} color="text-primary" sub="bulan ini"/>
-        <StatCard label="Rata-rata/hari" icon="today"
-          value={formatRupiah(avgPerDay, true)} color="text-on-surface" sub="pengeluaran harian"/>
+      {/* Stat cards & Auto-Sweep */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-on-surface">Ringkasan Bulan Ini</h3>
+          {isCurrentMonth && remaining > 0 && (
+            <button
+              onClick={() => setIsAutoSweepOpen(true)}
+              className="text-xs font-bold px-3 py-1.5 rounded-xl border border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/10 transition-colors flex items-center gap-1.5"
+            >
+              <Icon name="cleaning_services" sizeClass="text-[16px]" />
+              Tutup Buku / Sapu Sisa
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard label="Sisa Budget" icon="account_balance_wallet"
+            value={remaining < 0 ? `-${formatRupiah(Math.abs(remaining), true)}` : formatRupiah(remaining, true)}
+            color={remaining < 0 ? "text-error" : "text-secondary"}
+            sub={incomeSubLabel}/>
+          <StatCard label="Pengeluaran" icon="trending_down"
+            value={formatRupiah(totalSpent, true)} color="text-error"
+            sub={`${pct}% dari penghasilan`}/>
+          <StatCard label="Transaksi" icon="receipt_long"
+            value={`${transactions.length}x`} color="text-primary" sub="bulan ini"/>
+          <StatCard label="Rata-rata/hari" icon="today"
+            value={formatRupiah(avgPerDay, true)} color="text-on-surface" sub="pengeluaran harian"/>
+        </div>
       </div>
 
       {/* Budget Alerts */}
@@ -392,6 +433,13 @@ export default function DashboardPage({ setTab }) {
             <BudgetRings byCategory={byCategory} income={totalMonthlyIncome} categories={categories}/>
           </div>
         </section>
+
+        {/* Recent Auto Split */}
+        {lastSplitData && (
+          <section className="lg:col-span-12">
+            <RecentAutoSplitCard incomeTx={lastSplitData.incomeTx} allocations={lastSplitData.allocations} />
+          </section>
+        )}
 
         {/* Recent transactions */}
         <section className="lg:col-span-7 glass-card p-6 flex flex-col">
@@ -487,6 +535,12 @@ export default function DashboardPage({ setTab }) {
         )}
 
       </div>
+      <AutoSweepModal
+        isOpen={isAutoSweepOpen}
+        onClose={() => setIsAutoSweepOpen(false)}
+        remainingBudget={remaining}
+        savingsGoals={savingsGoals}
+      />
     </div>
   );
 }

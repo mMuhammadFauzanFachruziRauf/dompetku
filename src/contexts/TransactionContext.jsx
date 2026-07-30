@@ -73,6 +73,151 @@ export function TransactionProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // ─── CELENGAN (SAVINGS GOALS) STATE ────────────────────────────────>
+  const [savingsGoals, setSavingsGoals] = useState([]);
+  const [savingsTransactions, setSavingsTransactions] = useState([]);
+  const [savingsLoading, setSavingsLoading] = useState(true);
+
+  // ─── AUTO-SPLIT RULES STATE ───────────────────────────────────────>
+  const [autoSplitRules, setAutoSplitRules] = useState([]);
+  const [autoSplitLoading, setAutoSplitLoading] = useState(false);
+
+  const fetchSavingsGoals = useCallback(async () => {
+    if (!user) return;
+    setSavingsLoading(true);
+    
+    const { data: goals, error: goalsErr } = await supabase
+      .from("savings_goals")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true });
+      
+    if (!goalsErr && goals) {
+      setSavingsGoals(goals);
+    }
+
+    const { data: txs, error: txsErr } = await supabase
+      .from("savings_transactions")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("transaction_date", { ascending: false });
+
+    if (!txsErr && txs) {
+      setSavingsTransactions(txs);
+    }
+    
+    setSavingsLoading(false);
+  }, [user]);
+
+  const addSavingsGoal = async (goal) => {
+    const newGoal = {
+      ...goal,
+      user_id: user.id,
+      current_amount: 0
+    };
+    
+    const { data, error } = await supabase
+      .from("savings_goals")
+      .insert([newGoal])
+      .select()
+      .single();
+      
+    if (error) return { error: error.message };
+    
+    setSavingsGoals(prev => [...prev, data]);
+    return { data };
+  };
+
+  const depositToSavingsGoal = async (goalId, amount) => {
+    const { data: tx, error: txError } = await supabase
+      .from("savings_transactions")
+      .insert([{
+        goal_id: goalId,
+        user_id: user.id,
+        amount: Number(amount)
+      }])
+      .select()
+      .single();
+
+    if (txError) return { error: txError.message };
+
+    const goal = savingsGoals.find(g => g.id === goalId);
+    if (!goal) return { error: "Goal not found" };
+    
+    const newAmount = Number(goal.current_amount) + Number(amount);
+    const { error: updateError } = await supabase
+      .from("savings_goals")
+      .update({ current_amount: newAmount })
+      .eq("id", goalId);
+      
+    if (updateError) return { error: updateError.message };
+
+    setSavingsTransactions(prev => [tx, ...prev]);
+    setSavingsGoals(prev => prev.map(g => g.id === goalId ? { ...g, current_amount: newAmount } : g));
+    return { data: tx };
+  };
+
+  const withdrawFromSavings = async (goalId, amount, type, expenseDetails = null) => {
+    const goal = savingsGoals.find(g => g.id === goalId);
+    if (!goal) return { error: "Celengan tidak ditemukan" };
+    if (goal.current_amount < amount) return { error: "Saldo celengan tidak mencukupi" };
+
+    if (type === 'SPEND' && expenseDetails) {
+      const txResult = await addTransaction({
+        ...expenseDetails,
+        nominal: amount,
+        jenis: "pengeluaran"
+      });
+      if (txResult.error) return { error: txResult.error };
+    }
+
+    const { data: tx, error: txError } = await supabase
+      .from("savings_transactions")
+      .insert([{
+        goal_id: goalId,
+        user_id: user.id,
+        amount: -Number(amount)
+      }])
+      .select()
+      .single();
+
+    if (txError) return { error: txError.message };
+
+    const newAmount = Number(goal.current_amount) - Number(amount);
+    const { error: updateError } = await supabase
+      .from("savings_goals")
+      .update({ current_amount: newAmount })
+      .eq("id", goalId);
+
+    if (updateError) return { error: updateError.message };
+
+    setSavingsTransactions(prev => [tx, ...prev]);
+    setSavingsGoals(prev => prev.map(g => g.id === goalId ? { ...g, current_amount: newAmount } : g));
+    return { success: true };
+  };
+
+  const deleteSavingsGoal = async (goalId) => {
+    const { error } = await supabase
+      .from("savings_goals")
+      .delete()
+      .eq("id", goalId);
+      
+    if (error) return { error: error.message };
+    
+    setSavingsGoals(prev => prev.filter(g => g.id !== goalId));
+    setSavingsTransactions(prev => prev.filter(t => t.goal_id !== goalId));
+    
+    // Also remove any auto-split rules targeting this goal
+    const rulesToDelete = autoSplitRules.filter(r => r.target_savings_goal_id === goalId);
+    for (const rule of rulesToDelete) {
+      await deleteAutoSplitRule(rule.id);
+    }
+    
+    return { success: true };
+  };
+
+  // <──────────────────────────────── END OF CELENGAN ────────────────>
+
   const fetchTransactions = useCallback(async () => {
     if (!user) return;
     setLoading(true);
@@ -315,6 +460,9 @@ export function TransactionProvider({ children }) {
       setHasOnboarded(false);
       setShortcuts([]);
       setCategoryBudgets({});
+      setSavingsGoals([]); // Clear savings goals on logout
+      setSavingsTransactions([]); // Clear savings transactions on logout
+      setAutoSplitRules([]);
       setLoading(false);
       return;
     }
@@ -332,6 +480,8 @@ export function TransactionProvider({ children }) {
           fetchProfile(),
           fetchCategories(),
           fetchWallets(),
+          fetchSavingsGoals(), // Fetch savings goals
+          fetchAutoSplitRules(),
         ]);
       } catch (e) {
         // swallow - individual fetchers set errors
@@ -367,7 +517,7 @@ export function TransactionProvider({ children }) {
       if (subscription) subscription.unsubscribe();
       if (fallbackTimeout) clearTimeout(fallbackTimeout);
     };
-  }, [user, fetchTransactions, fetchAllTransactionsForBalances, fetchProfile, fetchCategories, fetchWallets]);
+  }, [user, fetchTransactions, fetchAllTransactionsForBalances, fetchProfile, fetchCategories, fetchWallets, fetchSavingsGoals]);
 
   // ── Kategori CRUD ────────────────────────────────────────────────────────
   const addCategory = async (cat) => {
@@ -834,7 +984,112 @@ export function TransactionProvider({ children }) {
     return { success: true };
   };
 
+  // ── Auto-Split ───────────────────────────────────────────────────────────
+  const fetchAutoSplitRules = useCallback(async () => {
+    if (!user) return;
+    setAutoSplitLoading(true);
+    const { data, error: err } = await supabase
+      .from("auto_split_rules")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("priority", { ascending: true });
+    
+    if (!err && data) {
+      setAutoSplitRules(data);
+    }
+    setAutoSplitLoading(false);
+  }, [user]);
+
+  const addAutoSplitRule = async (rule) => {
+    if (!user) return { error: "Belum login" };
+    const { data, error: err } = await supabase
+      .from("auto_split_rules")
+      .insert([{ ...rule, user_id: user.id }])
+      .select()
+      .single();
+    if (err) return { error: err.message };
+    setAutoSplitRules(prev => [...prev, data].sort((a,b) => a.priority - b.priority));
+    return { data };
+  };
+
+  const updateAutoSplitRule = async (id, rule) => {
+    if (!user) return { error: "Belum login" };
+    const { data, error: err } = await supabase
+      .from("auto_split_rules")
+      .update(rule)
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .select()
+      .single();
+    if (err) return { error: err.message };
+    setAutoSplitRules(prev => prev.map(r => r.id === id ? data : r).sort((a,b) => a.priority - b.priority));
+    return { success: true };
+  };
+
+  const deleteAutoSplitRule = async (id) => {
+    if (!user) return { error: "Belum login" };
+    const { error: err } = await supabase
+      .from("auto_split_rules")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+    if (err) return { error: err.message };
+    setAutoSplitRules(prev => prev.filter(r => r.id !== id));
+    return { success: true };
+  };
+
+  const executeAutoSplit = async (incomeTxPayload, allocations) => {
+    // 1. Catat pemasukan utamanya
+    const incomeResult = await addTransaction(incomeTxPayload);
+    if (incomeResult.error) return { error: incomeResult.error };
+
+    // 2. Lakukan alokasi (transfer & setor celengan)
+    for (const alloc of allocations) {
+      if (alloc.targetWalletId) {
+        // Buat transaksi transfer
+        await addTransaction({
+          nominal: alloc.amount,
+          kategori: "Transfer",
+          catatan: `Auto-Split: ${alloc.name}`,
+          tanggal: incomeTxPayload.tanggal,
+          jenis: "transfer",
+          wallet_id: incomeTxPayload.wallet_id, // Dari dompet pemasukan
+          to_wallet_id: alloc.targetWalletId,   // Ke dompet tujuan
+        });
+      } else if (alloc.targetSavingsGoalId) {
+        // Buat transaksi pengeluaran (dianggap ditabung = uang keluar dari dompet fisik)
+        await addTransaction({
+          nominal: alloc.amount,
+          kategori: "Tabungan Umum",
+          catatan: `Auto-Split Celengan: ${alloc.name}`,
+          tanggal: incomeTxPayload.tanggal,
+          jenis: "pengeluaran",
+          wallet_id: incomeTxPayload.wallet_id, // Dari dompet pemasukan
+        });
+        // Catat ke sistem celengan
+        await depositToSavingsGoal(alloc.targetSavingsGoalId, alloc.amount);
+      }
+    }
+    return { success: true, incomeData: incomeResult.data };
+  };
+
   // ── Computed values ──────────────────────────────────────────────────────
+  
+  // New Calculation for Savings this month
+  const savingsAllocatedThisMonth = useMemo(() => {
+    const now = selectedDate;
+    const year = now.getFullYear();
+    const month = now.getMonth();
+
+    return savingsTransactions.reduce((total, st) => {
+      const txDate = new Date(st.transaction_date);
+      if (txDate.getFullYear() === year && txDate.getMonth() === month) {
+        return total + st.amount;
+      }
+      return total;
+    }, 0);
+  }, [savingsTransactions, selectedDate]);
+
   const totalSpent = transactions
     .filter((t) => resolveTransactionType(t) === "pengeluaran")
     .reduce((s, t) => s + Math.abs(Number(t.nominal || 0)), 0);
@@ -848,9 +1103,10 @@ export function TransactionProvider({ children }) {
 
   // Baseline for budgets & 50/30/20 includes optional rollover (no wallet impact)
   const totalMonthlyIncome = income + rolloverAmount;
-  const remaining = totalMonthlyIncome - totalSpent;
+  // IMPORTANT: Adjust remaining budget to account for savings
+  const remaining = totalMonthlyIncome - totalSpent - savingsAllocatedThisMonth;
   const pct = totalMonthlyIncome > 0
-    ? Math.max(0, Math.min(Math.round((totalSpent / totalMonthlyIncome) * 100), 100))
+    ? Math.max(0, Math.min(Math.round(((totalSpent + savingsAllocatedThisMonth) / totalMonthlyIncome) * 100), 100))
     : 0;
 
   const byCategory = transactions
@@ -956,7 +1212,25 @@ export function TransactionProvider({ children }) {
     updateCategoryBudget,
     getBudgetProgress,
     setSelectedDate,
-    // refetch: fetchData, // removed, no longer exists
+    
+    // Savings Goals exports
+    savingsGoals,
+    savingsTransactions,
+    savingsLoading,
+    savingsAllocatedThisMonth,
+    addSavingsGoal,
+    depositToSavingsGoal,
+    withdrawFromSavings,
+    deleteSavingsGoal,
+
+    // Auto-Split exports
+    autoSplitRules,
+    autoSplitLoading,
+    fetchAutoSplitRules,
+    addAutoSplitRule,
+    updateAutoSplitRule,
+    deleteAutoSplitRule,
+    executeAutoSplit,
   };
 
   return (
