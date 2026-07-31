@@ -12,6 +12,8 @@ export default function AutoSplitSettingsPage({ setTab }) {
     deleteAutoSplitRule,
     wallets,
     savingsGoals,
+    transactions,
+    addTransaction,
   } = useTransaction();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -98,9 +100,24 @@ export default function AutoSplitSettingsPage({ setTab }) {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Hapus rule ini?")) {
-      await deleteAutoSplitRule(id);
+    if (window.confirm("Yakin ingin menghapus aturan auto-split ini?")) {
+      const result = await deleteAutoSplitRule(id);
+      if (result.error) alert(result.error);
     }
+  };
+
+  const handlePayBill = async (rule) => {
+    if (!window.confirm(`Catat pembayaran untuk ${rule.name} sebesar ${formatRupiah(rule.value)}?`)) return;
+    
+    // Disable saving or show loading state globally (optional)
+    await addTransaction({
+      jenis: "pengeluaran",
+      nominal: rule.value,
+      kategori: "Tagihan", // Or generic
+      catatan: rule.name,
+      wallet_id: rule.target_wallet_id || wallets[0]?.id,
+      tanggal: new Date().toISOString()
+    });
   };
 
   return (
@@ -149,7 +166,19 @@ export default function AutoSplitSettingsPage({ setTab }) {
         </div>
       ) : (
         <div className="space-y-4">
-          {autoSplitRules.map((rule, idx) => (
+          {autoSplitRules.map((rule, idx) => {
+            const isFixed = rule.type === 'fixed';
+            let isPaid = false;
+            
+            if (isFixed && transactions && transactions.length > 0) {
+              isPaid = transactions.some(t => {
+                const rawJenis = typeof t.jenis === 'string' ? t.jenis.toLowerCase() : "";
+                const isExpense = rawJenis === 'pengeluaran' || Number(t.nominal || 0) > 0;
+                return isExpense && t.catatan?.toLowerCase() === rule.name.toLowerCase();
+              });
+            }
+
+            return (
             <div key={rule.id} className="glass-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 border-l-4" style={{borderLeftColor: rule.type === 'fixed' ? '#fb923c' : rule.type === 'waterfall' ? '#60a5fa' : '#4edea3'}}>
               <div className="flex items-start gap-4">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${rule.type === 'fixed' ? 'bg-orange-500/10 border border-orange-500/20 text-orange-400' : rule.type === 'waterfall' ? 'bg-blue-500/10 border border-blue-500/20 text-blue-400' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'}`}>
@@ -169,6 +198,27 @@ export default function AutoSplitSettingsPage({ setTab }) {
                     <Icon name="subdirectory_arrow_right" sizeClass="text-[12px]" />
                     Target: {rule.target_wallet_id ? wallets.find(w => w.id === rule.target_wallet_id)?.name : savingsGoals.find(s => String(s.id) === String(rule.target_savings_goal_id))?.name}
                   </p>
+                  
+                  {/* BILL TRACKER LOGIC */}
+                  {isFixed && (
+                    <div className="mt-3">
+                      {isPaid ? (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[11px] font-bold">
+                          <Icon name="check_circle" sizeClass="text-[14px]" />
+                          Sudah Dibayar Bulan Ini
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handlePayBill(rule)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border-2 border-emerald-500 text-emerald-500 hover:bg-emerald-500/10 transition-colors text-xs font-bold"
+                        >
+                          <Icon name="credit_card" sizeClass="text-[16px]" />
+                          Catat Pembayaran
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                 </div>
               </div>
               
@@ -189,7 +239,7 @@ export default function AutoSplitSettingsPage({ setTab }) {
                 </button>
               </div>
             </div>
-          ))}
+          )})}
         </div>
       )}
 
