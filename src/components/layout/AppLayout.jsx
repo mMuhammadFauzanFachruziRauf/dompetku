@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTransaction } from "../../contexts/TransactionContext";
 import { formatRupiah } from "../../utils/helpers";
@@ -52,11 +52,21 @@ export default function AppLayout({ tab, setTab, children }) {
   const name = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
   const initials = name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        window.dispatchEvent(new Event('resize'));
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-[100dvh] bg-background overflow-hidden">
 
       {/* ── SIDEBAR (desktop) ─────────────────────────────────────────────── */}
-      <aside className="hidden md:flex flex-col h-screen w-[280px] bg-slate-900/70 backdrop-blur-xl border-r border-slate-800/50 fixed left-0 top-0 z-50 overflow-y-auto">
+      <aside className="hidden md:flex flex-col h-[100dvh] w-[280px] bg-slate-950 border-r border-slate-800/50 fixed left-0 top-0 z-50 overflow-y-auto">
 
         {/* Logo */}
         <div className="px-8 pt-8 pb-6">
@@ -71,7 +81,7 @@ export default function AppLayout({ tab, setTab, children }) {
             return (
               <button
                 key={item.key}
-                onClick={() => setTab(item.key)}
+                onClick={() => typeof setTab === 'function' && setTab(item.key)}
                 className={[
                   "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 w-full text-left relative",
                   isActive
@@ -97,7 +107,7 @@ export default function AppLayout({ tab, setTab, children }) {
               {loading ? "—" : (isCurrentMonth ? (remaining < 0 ? `-${formatRupiah(Math.abs(remaining))}` : formatRupiah(remaining)) : "Hanya tampil di bulan ini")}
             </p>
             <button
-              onClick={() => setTab("catat")}
+              onClick={() => typeof setTab === 'function' && setTab("catat")}
               className="w-full mt-3 bg-emerald-500 text-slate-900 text-xs font-bold py-2 rounded-lg hover:bg-emerald-400 transition-colors relative z-10"
             >
               + Catat Pengeluaran
@@ -106,7 +116,7 @@ export default function AppLayout({ tab, setTab, children }) {
         </div>
 
         {/* User Widget */}
-        <div className="px-4 pb-8 relative z-50">
+        <div className="px-4 pb-8 relative z-30">
           <button
             onClick={() => setShowUserMenu(p => !p)}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800/40 transition-all"
@@ -135,7 +145,7 @@ export default function AppLayout({ tab, setTab, children }) {
               </button>
               <button
                 onClick={() => {
-                  setTab("kategori");
+                  typeof setTab === 'function' && setTab("kategori");
                   setShowUserMenu(false);
                 }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-on-surface hover:bg-surface-container-highest transition-colors border-b border-outline-variant/20"
@@ -159,7 +169,7 @@ export default function AppLayout({ tab, setTab, children }) {
       <div className="flex-1 flex flex-col md:ml-[280px] min-h-screen">
 
         {/* Top bar (desktop) */}
-        <header className="hidden md:flex fixed top-0 right-0 h-14 w-full md:w-[calc(100%-280px)] z-40 bg-slate-900/30 backdrop-blur-md border-b border-slate-800/50 items-center justify-between px-8">
+        <header className="hidden md:flex fixed top-0 right-0 h-14 w-full md:w-[calc(100%-280px)] z-40 bg-slate-950 border-b border-slate-800/50 items-center justify-between px-8">
           <div>
             <p className="text-sm font-semibold text-on-surface capitalize">
               {NAV_ITEMS.find(n => n.key === tab)?.label ?? "Dashboard"}
@@ -184,10 +194,10 @@ export default function AppLayout({ tab, setTab, children }) {
         </header>
 
         {/* Mobile top bar */}
-        <div className="md:hidden fixed top-0 left-0 right-0 h-14 z-40 bg-slate-900/70 backdrop-blur-md border-b border-slate-800/50 flex items-center justify-between px-5">
+        <div className="md:hidden fixed top-0 left-0 right-0 h-14 z-40 bg-slate-950 border-b border-slate-800/50 flex items-center justify-between px-5">
           <h1 className="text-lg font-black text-emerald-400 tracking-tighter">DompetKu</h1>
           <div className="flex items-center gap-3">
-            <button onClick={() => setTab("kategori")} className="flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors">
+            <button onClick={() => typeof setTab === 'function' && setTab("kategori")} className="flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors">
               <Icon name="category" sizeClass="text-[20px]" />
             </button>
             <button onClick={() => setShowSettings(true)} className="flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors">
@@ -203,7 +213,7 @@ export default function AppLayout({ tab, setTab, children }) {
         </div>
 
         {/* Mobile Month Selector */}
-        <div className="md:hidden fixed top-14 left-0 right-0 z-30 bg-slate-900/80 backdrop-blur-md border-b border-slate-800/50 px-5 py-2 flex items-center justify-between">
+        <div className="md:hidden fixed top-14 left-0 right-0 z-30 bg-slate-950 border-b border-slate-800/50 px-5 py-2 flex items-center justify-between">
           <p className="text-[10px] font-bold tracking-widest uppercase text-on-surface-variant">Periode</p>
           <MonthSelector />
         </div>
@@ -214,13 +224,13 @@ export default function AppLayout({ tab, setTab, children }) {
         </main>
 
         {/* ── BOTTOM NAV (mobile) ──────────────────────────────────────────── */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-xl border-t border-slate-800/50 flex">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-950 border-t border-slate-800/50 flex">
           {NAV_ITEMS.map(item => {
             const isActive = tab === item.key;
             return (
               <button
                 key={item.key}
-                onClick={() => setTab(item.key)}
+                onClick={() => typeof setTab === 'function' && setTab(item.key)}
                 className="flex-1 flex flex-col items-center gap-1 py-2.5 transition-all"
               >
                 <Icon name={item.icon} className={`${isActive ? "text-emerald-400" : "text-slate-500"}`} sizeClass="text-[22px]" />

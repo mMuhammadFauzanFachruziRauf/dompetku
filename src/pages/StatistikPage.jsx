@@ -156,8 +156,8 @@ export default function StatistikPage() {
             <p className="text-sm">Belum ada data</p>
           </div>
         ) : (
-          <div className="h-64 w-full mt-4">
-            <ResponsiveContainer width="99%" height="100%" minHeight={250}>
+          <div className="w-full mt-4" style={{ width: '100%', height: 300, minHeight: 300 }}>
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dailyChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
                 <XAxis 

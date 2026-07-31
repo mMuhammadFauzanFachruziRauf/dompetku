@@ -24,7 +24,7 @@ export default function Sidebar({ tab, setTab }) {
   const ringColor = pct >= 90 ? "#ef4444" : pct >= 70 ? "#f97316" : "#10b981";
 
   return (
-    <aside className="hidden md:flex flex-col w-[240px] flex-shrink-0 bg-white border-r border-stone-100 min-h-screen sticky top-0 h-screen overflow-y-auto">
+    <aside className="hidden md:flex flex-col w-[240px] flex-shrink-0 bg-white border-r border-stone-100 min-h-[100dvh] sticky top-0 h-[100dvh] overflow-y-auto">
 
       {/* ── Logo ── */}
       <div className="px-6 pt-8 pb-6 border-b border-stone-100">
@@ -95,7 +95,7 @@ export default function Sidebar({ tab, setTab }) {
           return (
             <button
               key={key}
-              onClick={() => setTab(key)}
+              onClick={() => typeof setTab === 'function' && setTab(key)}
               aria-current={active ? "page" : undefined}
               className={[
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 mb-0.5",

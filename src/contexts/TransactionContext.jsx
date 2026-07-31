@@ -195,8 +195,26 @@ export function TransactionProvider({ children }) {
     setSavingsGoals(prev => prev.map(g => g.id === goalId ? { ...g, current_amount: newAmount } : g));
     return { success: true };
   };
+  const updateSavingsGoal = async (goalId, updates) => {
+    const { data, error } = await supabase
+      .from("savings_goals")
+      .update(updates)
+      .eq("id", goalId)
+      .select()
+      .single();
+      
+    if (error) return { error: error.message };
+    
+    setSavingsGoals(prev => prev.map(g => g.id === goalId ? { ...g, ...data } : g));
+    return { data };
+  };
 
   const deleteSavingsGoal = async (goalId) => {
+    const goal = savingsGoals.find(g => g.id === goalId);
+    if (goal && Number(goal.current_amount) > 0) {
+      return { error: "Cairkan atau kosongkan saldo celengan terlebih dahulu sebelum menghapus!" };
+    }
+
     const { error } = await supabase
       .from("savings_goals")
       .delete()
@@ -1219,6 +1237,7 @@ export function TransactionProvider({ children }) {
     savingsLoading,
     savingsAllocatedThisMonth,
     addSavingsGoal,
+    updateSavingsGoal,
     depositToSavingsGoal,
     withdrawFromSavings,
     deleteSavingsGoal,
