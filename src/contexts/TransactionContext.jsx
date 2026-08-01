@@ -1121,10 +1121,10 @@ export function TransactionProvider({ children }) {
 
   // Baseline for budgets & 50/30/20 includes optional rollover (no wallet impact)
   const totalMonthlyIncome = income + rolloverAmount;
-  // IMPORTANT: Adjust remaining budget to account for savings
-  const remaining = totalMonthlyIncome - totalSpent - savingsAllocatedThisMonth;
+  // Sisa Budget murni dihitung dari uang masuk dikurang uang keluar riil
+  const remaining = totalMonthlyIncome - totalSpent;
   const pct = totalMonthlyIncome > 0
-    ? Math.max(0, Math.min(Math.round(((totalSpent + savingsAllocatedThisMonth) / totalMonthlyIncome) * 100), 100))
+    ? Math.max(0, Math.min(Math.round((totalSpent / totalMonthlyIncome) * 100), 100))
     : 0;
 
   const byCategory = transactions

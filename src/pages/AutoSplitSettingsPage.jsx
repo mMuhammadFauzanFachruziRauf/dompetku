@@ -18,6 +18,8 @@ export default function AutoSplitSettingsPage({ setTab }) {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [selectedRuleForPayment, setSelectedRuleForPayment] = useState(null);
+  const [isPaying, setIsPaying] = useState(false);
   
   // Form State
   const [name, setName] = useState("");
@@ -106,18 +108,21 @@ export default function AutoSplitSettingsPage({ setTab }) {
     }
   };
 
-  const handlePayBill = async (rule) => {
-    if (!window.confirm(`Catat pembayaran untuk ${rule.name} sebesar ${formatRupiah(rule.value)}?`)) return;
+  const confirmPayBill = async () => {
+    if (!selectedRuleForPayment) return;
+    setIsPaying(true);
     
-    // Disable saving or show loading state globally (optional)
     await addTransaction({
       jenis: "pengeluaran",
-      nominal: rule.value,
+      nominal: selectedRuleForPayment.value,
       kategori: "Tagihan", // Or generic
-      catatan: rule.name,
-      wallet_id: rule.target_wallet_id || wallets[0]?.id,
+      catatan: selectedRuleForPayment.name,
+      wallet_id: selectedRuleForPayment.target_wallet_id || wallets[0]?.id,
       tanggal: new Date().toISOString()
     });
+    
+    setIsPaying(false);
+    setSelectedRuleForPayment(null);
   };
 
   return (
@@ -209,7 +214,7 @@ export default function AutoSplitSettingsPage({ setTab }) {
                         </div>
                       ) : (
                         <button
-                          onClick={() => handlePayBill(rule)}
+                          onClick={() => setSelectedRuleForPayment(rule)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border-2 border-emerald-500 text-emerald-500 hover:bg-emerald-500/10 transition-colors text-xs font-bold"
                         >
                           <Icon name="credit_card" sizeClass="text-[16px]" />
@@ -346,6 +351,51 @@ export default function AutoSplitSettingsPage({ setTab }) {
               >
                 {saving ? "Menyimpan..." : "Simpan"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Payment Confirmation Modal */}
+      {selectedRuleForPayment && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <button
+            type="button"
+            onClick={() => setSelectedRuleForPayment(null)}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          />
+          <div className="relative w-full max-w-sm glass-card bg-surface-container-high/95 p-6 animate-slide-up overflow-hidden shadow-2xl border border-emerald-500/20">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+            
+            <div className="relative z-10 flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mb-4">
+                <Icon name="credit_card" sizeClass="text-[32px] text-emerald-400" />
+              </div>
+              <h3 className="text-lg font-bold text-on-surface mb-2">Konfirmasi Pembayaran</h3>
+              <p className="text-sm text-on-surface-variant mb-6">
+                Catat pembayaran tagihan <span className="font-bold text-on-surface">{selectedRuleForPayment.name}</span> sebesar <span className="font-bold text-emerald-400">{formatRupiah(selectedRuleForPayment.value)}</span>?
+              </p>
+              
+              <div className="flex w-full gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedRuleForPayment(null)}
+                  disabled={isPaying}
+                  className="flex-1 py-3 rounded-xl border border-outline-variant/40 text-sm font-bold text-on-surface-variant hover:bg-surface-container-highest transition-colors disabled:opacity-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmPayBill}
+                  disabled={isPaying}
+                  className="flex-1 py-3 rounded-xl bg-emerald-500 text-slate-900 text-sm font-bold hover:bg-emerald-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isPaying ? (
+                    <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z"/></svg>Memproses...</>
+                  ) : "Ya, Catat"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
