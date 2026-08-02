@@ -183,6 +183,21 @@ export default function AutoSplitSettingsPage({ setTab }) {
               });
             }
 
+            let spentForRule = 0;
+            if (!isFixed && transactions && transactions.length > 0) {
+              spentForRule = transactions.filter(t => {
+                const rawJenis = typeof t.jenis === 'string' ? t.jenis.toLowerCase() : "";
+                const isExpense = rawJenis === 'pengeluaran' || Number(t.nominal || 0) > 0;
+                // Cocokkan nama kategori atau deskripsi dengan nama rule
+                return isExpense && (t.kategori?.toLowerCase() === rule.name.toLowerCase() || t.catatan?.toLowerCase() === rule.name.toLowerCase());
+              }).reduce((acc, curr) => acc + Math.abs(Number(curr.nominal || 0)), 0);
+            }
+
+            const ruleValue = Number(rule.value || 0);
+            const isMaxCap = rule.type === 'waterfall';
+            const progressPct = isMaxCap && ruleValue > 0 ? Math.min(100, Math.round((spentForRule / ruleValue) * 100)) : 0;
+            const isOverspent = isMaxCap && spentForRule >= ruleValue;
+
             return (
             <div key={rule.id} className="glass-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 border-l-4" style={{borderLeftColor: rule.type === 'fixed' ? '#fb923c' : rule.type === 'waterfall' ? '#60a5fa' : '#4edea3'}}>
               <div className="flex items-start gap-4">
@@ -220,6 +235,30 @@ export default function AutoSplitSettingsPage({ setTab }) {
                           <Icon name="credit_card" sizeClass="text-[16px]" />
                           Catat Pembayaran
                         </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* SMART PROGRESS MONITOR (MAX CAP) */}
+                  {isMaxCap && (
+                    <div className="mt-4 max-w-sm">
+                      <div className="flex justify-between items-center mb-1.5">
+                        <span className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Monitor Pengeluaran</span>
+                        <span className={`text-[10px] font-bold ${isOverspent ? 'text-rose-500' : 'text-emerald-500'}`}>
+                          {formatRupiah(spentForRule)} / {formatRupiah(ruleValue)}
+                        </span>
+                      </div>
+                      <div className="w-full bg-surface-variant rounded-full h-1.5 overflow-hidden">
+                        <div 
+                          className={`h-1.5 rounded-full ${isOverspent ? 'bg-rose-500' : 'bg-emerald-500'}`} 
+                          style={{ width: `${progressPct}%`, transition: 'width 0.5s ease-in-out' }}
+                        ></div>
+                      </div>
+                      {isOverspent && (
+                        <p className="text-[10px] text-rose-500 mt-1 flex items-center gap-1">
+                          <Icon name="warning" sizeClass="text-[12px]" />
+                          Batas Maksimal Tercapai
+                        </p>
                       )}
                     </div>
                   )}

@@ -128,7 +128,21 @@ export function TransactionProvider({ children }) {
     return { data };
   };
 
-  const depositToSavingsGoal = async (goalId, amount) => {
+  const depositToSavingsGoal = async (goalId, amount, walletId = null) => {
+    // Potong dari dompet fisik jika ada
+    if (walletId) {
+      const goal = savingsGoals.find(g => g.id === goalId);
+      const txResult = await addTransaction({
+        nominal: amount,
+        kategori: "Tabungan Umum",
+        catatan: `Isi Celengan: ${goal?.name || ''}`,
+        tanggal: new Date().toISOString(),
+        jenis: "pengeluaran",
+        wallet_id: walletId
+      });
+      if (txResult.error) return { error: txResult.error };
+    }
+
     const { data: tx, error: txError } = await supabase
       .from("savings_transactions")
       .insert([{
@@ -167,6 +181,17 @@ export function TransactionProvider({ children }) {
         ...expenseDetails,
         nominal: amount,
         jenis: "pengeluaran"
+      });
+      if (txResult.error) return { error: txResult.error };
+    } else if (type === 'REALLOCATE' && expenseDetails && expenseDetails.wallet_id) {
+      const goalName = goal ? goal.name : "";
+      const txResult = await addTransaction({
+        nominal: amount,
+        kategori: "Lainnya",
+        catatan: `Pencairan Celengan: ${goalName}`,
+        tanggal: new Date().toISOString(),
+        jenis: "pemasukan",
+        wallet_id: expenseDetails.wallet_id
       });
       if (txResult.error) return { error: txResult.error };
     }

@@ -162,16 +162,23 @@ const GoalFormModal = ({ isOpen, onClose, onSave, initialData }) => {
   );
 };
 
-const DepositModal = ({ isOpen, onClose, onDeposit, goal }) => {
+const DepositModal = ({ isOpen, onClose, onDeposit, goal, wallets }) => {
   const [amount, setAmount] = useState('');
+  const [walletId, setWalletId] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  React.useEffect(() => {
+    if (isOpen && wallets?.length > 0 && !walletId) {
+      setWalletId(wallets[0].id);
+    }
+  }, [isOpen, wallets]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async () => {
-    if (amount > 0) {
+    if (amount > 0 && walletId) {
       setLoading(true);
-      await onDeposit(goal.id, parseFloat(amount));
+      await onDeposit(goal.id, parseFloat(amount), walletId);
       setLoading(false);
       setAmount('');
       onClose();
@@ -187,6 +194,13 @@ const DepositModal = ({ isOpen, onClose, onDeposit, goal }) => {
         
         <div className="space-y-4">
           <div>
+            <label className="block text-xs font-semibold text-on-surface-variant mb-1">Sumber Dana (Dompet)</label>
+            <select value={walletId} onChange={e => setWalletId(e.target.value)} className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none appearance-none">
+              <option value="" disabled>Pilih Dompet...</option>
+              {wallets?.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          </div>
+          <div>
             <label className="block text-xs font-semibold text-on-surface-variant mb-1">Nominal (Rp)</label>
             <input type="number" placeholder="Cth: 50000" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none" />
           </div>
@@ -194,7 +208,7 @@ const DepositModal = ({ isOpen, onClose, onDeposit, goal }) => {
 
         <div className="mt-6 flex justify-end gap-3">
           <button onClick={onClose} disabled={loading} className="px-4 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant border border-outline-variant/30 hover:bg-surface-variant transition-colors">Batal</button>
-          <button onClick={handleSubmit} disabled={loading || !amount} className="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-900 bg-emerald-500 hover:bg-emerald-400 transition-colors disabled:opacity-50">{loading ? "Memproses..." : "Isi Saldo"}</button>
+          <button onClick={handleSubmit} disabled={loading || !amount || !walletId} className="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-900 bg-emerald-500 hover:bg-emerald-400 transition-colors disabled:opacity-50">{loading ? "Memproses..." : "Isi Saldo"}</button>
         </div>
       </div>
     </div>
@@ -229,9 +243,15 @@ const WithdrawModal = ({ isOpen, onClose, onWithdraw, goal, wallets, categories 
     setLoading(true);
     
     let expenseDetails = null;
+    
+    if (!walletId) {
+      setErrorMsg('Pilih dompet terlebih dahulu');
+      return;
+    }
+
     if (actionType === 'SPEND') {
-      if (!walletId || !categoryName) {
-        setErrorMsg('Pilih dompet dan kategori untuk pengeluaran');
+      if (!categoryName) {
+        setErrorMsg('Pilih kategori untuk pengeluaran');
         setLoading(false);
         return;
       }
@@ -240,6 +260,10 @@ const WithdrawModal = ({ isOpen, onClose, onWithdraw, goal, wallets, categories 
         kategori: categoryName,
         catatan: note || `Pencairan Celengan: ${goal.name}`,
         tanggal: new Date().toISOString()
+      };
+    } else {
+      expenseDetails = {
+        wallet_id: walletId
       };
     }
 
@@ -303,35 +327,39 @@ const WithdrawModal = ({ isOpen, onClose, onWithdraw, goal, wallets, categories 
             </p>
           </div>
 
-          {actionType === 'SPEND' && (
-            <div className="space-y-4 p-4 rounded-xl bg-surface-dim border border-outline-variant/30">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-on-surface-variant mb-1">Dompet Sumber</label>
-                  <select value={walletId} onChange={e => setWalletId(e.target.value)} className="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none appearance-none">
-                    {wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                  </select>
-                </div>
+          <div className="space-y-4 p-4 rounded-xl bg-surface-dim border border-outline-variant/30">
+            <div>
+              <label className="block text-xs font-semibold text-on-surface-variant mb-1">
+                {actionType === 'REALLOCATE' ? "Dompet Tujuan Pencairan" : "Dompet Sumber Pengeluaran"}
+              </label>
+              <select value={walletId} onChange={e => setWalletId(e.target.value)} className="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none appearance-none">
+                <option value="" disabled>Pilih Dompet...</option>
+                {wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+            </div>
+            
+            {actionType === 'SPEND' && (
+              <>
                 <div>
                   <label className="block text-xs font-semibold text-on-surface-variant mb-1">Kategori</label>
                   <select value={categoryName} onChange={e => setCategoryName(e.target.value)} className="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none appearance-none">
                     {categories.filter(c => c.type !== 'Income').map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-on-surface-variant mb-1">Catatan Pengeluaran (Opsional)</label>
-                <input type="text" placeholder={`Cth: Beli motor baru`} value={note} onChange={e => setNote(e.target.value)} className="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none" />
-              </div>
-            </div>
-          )}
+                <div>
+                  <label className="block text-xs font-semibold text-on-surface-variant mb-1">Catatan Pengeluaran (Opsional)</label>
+                  <input type="text" placeholder={`Cth: Beli motor baru`} value={note} onChange={e => setNote(e.target.value)} className="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none" />
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {errorMsg && <p className="text-error text-xs font-semibold mt-4">{errorMsg}</p>}
 
         <div className="mt-6 flex gap-3">
           <button onClick={onClose} disabled={loading} className="flex-1 py-3 rounded-xl text-sm font-bold text-on-surface-variant border border-outline-variant/30 hover:bg-surface-variant transition-colors">Batal</button>
-          <button onClick={handleSubmit} disabled={loading || !amount} className="flex-1 py-3 rounded-xl text-sm font-bold text-white bg-error hover:bg-error/80 transition-colors disabled:opacity-50 shadow-md">
+          <button onClick={handleSubmit} disabled={loading || !amount || !walletId} className="flex-1 py-3 rounded-xl text-sm font-bold text-white bg-error hover:bg-error/80 transition-colors disabled:opacity-50 shadow-md">
             {loading ? "Memproses..." : "Konfirmasi Cairkan"}
           </button>
         </div>
@@ -360,6 +388,10 @@ export default function SavingsGoalsPage() {
   const [isDepositModalOpen, setDepositModalOpen] = useState(false);
   const [isWithdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState(null);
+  
+  const [goalToDelete, setGoalToDelete] = useState(null);
+  const [deleteErrorMsg, setDeleteErrorMsg] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleOpenFormModal = (goal = null) => {
     setSelectedGoal(goal);
@@ -374,12 +406,21 @@ export default function SavingsGoalsPage() {
     }
   };
 
-  const handleDeleteGoal = async (goal) => {
-    if (window.confirm(`Yakin ingin menghapus celengan "${goal.name}"?`)) {
-      const res = await deleteSavingsGoal(goal.id);
-      if (res.error) {
-        alert(res.error);
-      }
+  const handleDeleteGoal = (goal) => {
+    setGoalToDelete(goal);
+    setDeleteErrorMsg('');
+  };
+
+  const confirmDeleteGoal = async () => {
+    if (!goalToDelete) return;
+    setIsDeleting(true);
+    setDeleteErrorMsg('');
+    const res = await deleteSavingsGoal(goalToDelete.id);
+    setIsDeleting(false);
+    if (res.error) {
+      setDeleteErrorMsg(res.error);
+    } else {
+      setGoalToDelete(null);
     }
   };
 
@@ -478,6 +519,7 @@ export default function SavingsGoalsPage() {
         onClose={() => setDepositModalOpen(false)} 
         onDeposit={depositToSavingsGoal}
         goal={selectedGoal}
+        wallets={wallets}
       />
       <WithdrawModal 
         isOpen={isWithdrawModalOpen} 
@@ -487,6 +529,57 @@ export default function SavingsGoalsPage() {
         wallets={wallets}
         categories={categories}
       />
+
+      {/* Delete Confirmation Modal */}
+      {goalToDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <button
+            type="button"
+            onClick={() => { setGoalToDelete(null); setDeleteErrorMsg(''); }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          />
+          <div className="relative w-full max-w-sm glass-card bg-surface-container-high/95 p-6 animate-slide-up overflow-hidden shadow-2xl border border-error/20">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-error/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+            
+            <div className="relative z-10 flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-full bg-error/15 border border-error/30 flex items-center justify-center mb-4">
+                <Icon name="delete_forever" sizeClass="text-[32px] text-error" />
+              </div>
+              <h3 className="text-lg font-bold text-on-surface mb-2">Hapus Celengan?</h3>
+              <p className="text-sm text-on-surface-variant mb-4">
+                Yakin ingin menghapus celengan <span className="font-bold text-on-surface">{goalToDelete.name}</span>?
+              </p>
+
+              {deleteErrorMsg && (
+                <div className="w-full bg-error/10 border border-error/20 rounded-xl p-3 mb-6">
+                  <p className="text-xs font-semibold text-error text-left">{deleteErrorMsg}</p>
+                </div>
+              )}
+              
+              <div className="flex w-full gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => { setGoalToDelete(null); setDeleteErrorMsg(''); }}
+                  disabled={isDeleting}
+                  className="flex-1 py-3 rounded-xl border border-outline-variant/40 text-sm font-bold text-on-surface-variant hover:bg-surface-container-highest transition-colors disabled:opacity-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteGoal}
+                  disabled={isDeleting}
+                  className="flex-1 py-3 rounded-xl bg-error text-white text-sm font-bold hover:bg-error/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isDeleting ? (
+                    <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z"/></svg>Menghapus...</>
+                  ) : "Hapus"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
