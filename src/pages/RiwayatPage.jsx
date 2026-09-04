@@ -68,7 +68,10 @@ export default function RiwayatPage({ setTab }) {
     return matchKat && matchSearch && matchType && matchWallet;
   }), [displayTransactions, filterKat, filterWallet, search, filterType]);
 
-  const totalFilteredExpense = filtered.filter(t => t.nominal > 0).reduce((s,t) => s + t.nominal, 0);
+  const totalFilteredExpense = filtered.filter(t => {
+    const isTransfer = (typeof t.jenis === 'string' && t.jenis.toLowerCase().includes('transfer')) || t.kategori?.toLowerCase() === 'transfer';
+    return t.nominal > 0 && !isTransfer;
+  }).reduce((s,t) => s + t.nominal, 0);
 
   // ── Group by date ─────────────────────────────────────────────────────────
   const grouped = useMemo(() => {
@@ -235,7 +238,10 @@ export default function RiwayatPage({ setTab }) {
           <div className="flex items-center justify-between px-1 mb-2">
             <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">{tanggal}</p>
             <p className="text-[11px] font-semibold text-error/70">
-              -{formatRupiah(txList.filter(t => t.nominal > 0).reduce((s,t) => s+t.nominal, 0))}
+              -{formatRupiah(txList.filter(t => {
+                const isTransfer = (typeof t.jenis === 'string' && t.jenis.toLowerCase().includes('transfer')) || t.kategori?.toLowerCase() === 'transfer';
+                return t.nominal > 0 && !isTransfer;
+              }).reduce((s,t) => s+t.nominal, 0))}
             </p>
           </div>
 
@@ -246,6 +252,8 @@ export default function RiwayatPage({ setTab }) {
               const walletName = tx.wallets?.name || tx.to_wallet?.name || tx.wallet?.name || "";
               const isConf = confirmId === tx.id;
               const isDel  = deletingId === tx.id;
+              const isTransfer = (typeof tx.jenis === 'string' && tx.jenis.toLowerCase().includes('transfer')) || tx.kategori?.toLowerCase() === 'transfer';
+              
               return (
                 <div key={tx.id}
                   className={`flex flex-wrap md:flex-nowrap items-center gap-3 px-4 py-3.5 transition-all ${
@@ -279,8 +287,8 @@ export default function RiwayatPage({ setTab }) {
 
                   {/* Amount + delete */}
                   <div className="w-full md:w-auto order-last md:order-none flex flex-col items-start md:items-end gap-1.5 md:flex-shrink-0 mt-2 md:mt-0">
-                    <p className={`text-sm font-bold ${tx.nominal < 0 ? "text-emerald-400" : "text-error"}`}>
-                      {tx.nominal < 0 ? "+" : "-"}{formatRupiah(Math.abs(tx.nominal))}
+                    <p className={`text-sm font-bold ${isTransfer ? "text-blue-400" : tx.nominal < 0 ? "text-emerald-400" : "text-error"}`}>
+                      {isTransfer ? "" : (tx.nominal < 0 ? "+" : "-")}{formatRupiah(Math.abs(tx.nominal))}
                     </p>
                     {!isConf ? (
                       <div className="flex items-center gap-2">

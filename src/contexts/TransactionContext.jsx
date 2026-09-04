@@ -613,7 +613,12 @@ export function TransactionProvider({ children }) {
 
   const resolveTransactionType = useCallback((tx) => {
     const rawJenis = typeof tx?.jenis === "string" ? tx.jenis.toLowerCase() : "";
-    if (rawJenis === "pemasukan" || rawJenis === "pengeluaran" || rawJenis === "transfer") {
+    
+    // Abaikan secara eksplisit transaksi dengan type transfer/transfer_out/transfer_in
+    if (rawJenis.includes("transfer")) return "transfer";
+    if (tx?.kategori?.toLowerCase() === "transfer") return "transfer";
+
+    if (rawJenis === "pemasukan" || rawJenis === "pengeluaran") {
       return rawJenis;
     }
     const categoryType = categoryTypeByName[tx?.kategori];
