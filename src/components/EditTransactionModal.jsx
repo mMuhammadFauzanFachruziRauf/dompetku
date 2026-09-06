@@ -10,6 +10,7 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
   const [nominal, setNominal] = useState("");
   const [kategori, setKategori] = useState("");
   const [catatan, setCatatan] = useState("");
+  const [tanggal, setTanggal] = useState("");
   const [walletId, setWalletId] = useState("");
   const [fromWalletId, setFromWalletId] = useState("");
   const [toWalletId, setToWalletId] = useState("");
@@ -30,6 +31,11 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
       setNominal(Math.abs(transaction.nominal).toString());
       setKategori(transaction.kategori);
       setCatatan(transaction.catatan || "");
+      
+      const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+      const localISOTime = (new Date(new Date(transaction.tanggal).getTime() - tzOffset)).toISOString().slice(0,16);
+      setTanggal(localISOTime);
+      
       const initialWalletId = transaction.wallet_id || wallets[0]?.id || "";
       const initialToWalletId = transaction.to_wallet_id || wallets.find((w) => w.id !== initialWalletId)?.id || "";
       setWalletId(initialWalletId);
@@ -141,6 +147,7 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
       jenis: finalJenis,
       wallet_id: isTransfer ? fromWalletId : walletId,
       to_wallet_id: isTransfer ? toWalletId : null,
+      tanggal: new Date(tanggal).toISOString(),
     });
 
     setLoading(false);
@@ -342,6 +349,23 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
               </div>
             </div>
           )}
+
+          {/* Tanggal */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
+              Waktu Transaksi
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">
+                <Icon name="event" sizeClass="text-[18px]" />
+              </span>
+              <input
+                type="datetime-local" value={tanggal}
+                onChange={e => setTanggal(e.target.value)}
+                className="w-full bg-surface-dim border border-outline-variant/50 rounded-xl pl-11 pr-4 py-3.5 text-on-surface text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 transition-all appearance-none"
+              />
+            </div>
+          </div>
 
           {/* Catatan */}
           <div>

@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useTransaction }    from "../contexts/TransactionContext";
 import { formatRupiah, getMeta, formatDate } from "../utils/helpers";
 import Icon from "../components/ui/Icon";
+import { Wallet } from "lucide-react";
 import { downloadExcel }     from "../utils/exportExcel";
 import EditTransactionModal  from "../components/EditTransactionModal";
 
@@ -13,7 +14,7 @@ const TYPE_EXPENSE = "Pengeluaran";
 
 const pillBase = "flex-shrink-0 whitespace-nowrap text-[11px] font-bold px-3 py-1.5 rounded-full transition-all border";
 const pillInactive = "bg-surface-container/60 text-on-surface-variant border-outline-variant/30 hover:border-outline-variant/60 hover:text-on-surface";
-const filterScrollRow = "flex w-full min-w-0 flex-nowrap gap-2 overflow-x-auto overscroll-x-contain pb-2 no-scrollbar touch-pan-x [-webkit-overflow-scrolling:touch]";
+const filterScrollRow = "flex w-full min-w-0 flex-nowrap gap-2 overflow-x-auto whitespace-nowrap snap-x pb-2 scrollbar-hide [&::-webkit-scrollbar]:hidden touch-pan-x [-webkit-overflow-scrolling:touch]";
 const filterScrollRowBleed = `${filterScrollRow} -mx-4 px-4 md:mx-0 md:px-0`;
 
 export default function RiwayatPage({ setTab }) {
@@ -22,8 +23,9 @@ export default function RiwayatPage({ setTab }) {
   const [filterWallet, setFilterWallet] = useState(WALLET_ALL);
   const [filterType, setFilterType] = useState(TYPE_ALL);
   const [search,    setSearch]    = useState("");
-  const [deletingId, setDeletingId] = useState(null);
-  const [confirmId,  setConfirmId]  = useState(null);
+  const [transactionToDelete, setTransactionToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteErrorMsg, setDeleteErrorMsg] = useState('');
   const [editingTx,  setEditingTx]  = useState(null);
   const [displayTransactions, setDisplayTransactions] = useState([]);
 
@@ -90,10 +92,17 @@ export default function RiwayatPage({ setTab }) {
   }, [filtered]);
 
   // ── Delete ────────────────────────────────────────────────────────────────
-  const handleDelete = async id => {
-    setDeletingId(id);
-    await deleteTransaction(id);
-    setDeletingId(null); setConfirmId(null);
+  const confirmDeleteTransaction = async () => {
+    if (!transactionToDelete) return;
+    setIsDeleting(true);
+    setDeleteErrorMsg('');
+    const res = await deleteTransaction(transactionToDelete.id);
+    setIsDeleting(false);
+    if (res?.error) {
+      setDeleteErrorMsg(res.error);
+    } else {
+      setTransactionToDelete(null);
+    }
   };
 
   return (
@@ -103,7 +112,7 @@ export default function RiwayatPage({ setTab }) {
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-xl font-bold text-on-surface">Riwayat Transaksi</h2>
-          <p className="text-sm text-on-surface-variant mt-0.5">Semua pengeluaranmu bulan ini</p>
+          <p className="text-sm text-on-surface-variant mt-0.5">Seluruh riwayat transaksimu bulan ini</p>
         </div>
         <button
           onClick={() => downloadExcel(filtered)}
@@ -179,7 +188,7 @@ export default function RiwayatPage({ setTab }) {
                     <span className="text-[12px] leading-none">{walletOpt.icon}</span>
                   )}
                   {!walletOpt.icon && walletOpt.value === WALLET_ALL && (
-                    <Icon name="account_balance_wallet" sizeClass="text-[12px]" />
+                    <Wallet size={16} className={isActive ? "text-slate-900" : "text-on-surface-variant"} />
                   )}
                   {walletOpt.label}
                 </button>
@@ -250,15 +259,13 @@ export default function RiwayatPage({ setTab }) {
             {txList.map((tx, i) => {
               const m = getMeta(tx.kategori, categories);
               const walletName = tx.wallets?.name || tx.to_wallet?.name || tx.wallet?.name || "";
-              const isConf = confirmId === tx.id;
-              const isDel  = deletingId === tx.id;
               const isTransfer = (typeof tx.jenis === 'string' && tx.jenis.toLowerCase().includes('transfer')) || tx.kategori?.toLowerCase() === 'transfer';
               
               return (
                 <div key={tx.id}
                   className={`flex flex-wrap md:flex-nowrap items-center gap-3 px-4 py-3.5 transition-all ${
                     i < txList.length - 1 ? "border-b border-outline-variant/20" : ""
-                  } ${isConf ? "bg-error/5" : "hover:bg-surface-container-high/50"}`}>
+                  } hover:bg-surface-container-high/50`}>
 
                   {/* Icon */}
                   <div className={`w-10 h-10 rounded-full ${m.bg} flex items-center justify-center flex-shrink-0`}>
@@ -290,29 +297,16 @@ export default function RiwayatPage({ setTab }) {
                     <p className={`text-sm font-bold ${isTransfer ? "text-blue-400" : tx.nominal < 0 ? "text-emerald-400" : "text-error"}`}>
                       {isTransfer ? "" : (tx.nominal < 0 ? "+" : "-")}{formatRupiah(Math.abs(tx.nominal))}
                     </p>
-                    {!isConf ? (
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => setEditingTx(tx)}
-                          className="text-[10px] text-outline hover:text-emerald-400 transition-colors font-semibold flex items-center gap-0.5">
-                          <Icon name="edit" sizeClass="text-[12px]" /> Edit
-                        </button>
-                        <button onClick={() => setConfirmId(tx.id)}
-                          className="text-[10px] text-outline hover:text-error transition-colors font-semibold flex items-center gap-0.5">
-                          <Icon name="delete" sizeClass="text-[12px]" /> Hapus
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex gap-1.5">
-                        <button onClick={() => setConfirmId(null)}
-                          className="text-[10px] font-bold text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full">
-                          Batal
-                        </button>
-                        <button onClick={() => handleDelete(tx.id)} disabled={isDel}
-                          className="text-[10px] font-bold text-slate-900 bg-error px-2 py-0.5 rounded-full disabled:opacity-60">
-                          {isDel ? "..." : "Hapus"}
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setEditingTx(tx)}
+                        className="text-[10px] text-outline hover:text-emerald-400 transition-colors font-semibold flex items-center gap-0.5">
+                        <Icon name="edit" sizeClass="text-[12px]" /> Edit
+                      </button>
+                      <button onClick={() => { setTransactionToDelete(tx); setDeleteErrorMsg(''); }}
+                        className="text-[10px] text-outline hover:text-error transition-colors font-semibold flex items-center gap-0.5">
+                        <Icon name="delete" sizeClass="text-[12px]" /> Hapus
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -327,6 +321,57 @@ export default function RiwayatPage({ setTab }) {
         onClose={() => setEditingTx(null)}
         transaction={editingTx}
       />
+
+      {/* Delete Confirmation Modal */}
+      {transactionToDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <button
+            type="button"
+            onClick={() => { setTransactionToDelete(null); setDeleteErrorMsg(''); }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          />
+          <div className="relative w-full max-w-sm glass-card bg-surface-container-high/95 p-6 animate-slide-up overflow-hidden shadow-2xl border border-error/20">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-error/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+            
+            <div className="relative z-10 flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-full bg-error/15 border border-error/30 flex items-center justify-center mb-4">
+                <Icon name="delete_forever" sizeClass="text-[32px] text-error" />
+              </div>
+              <h3 className="text-lg font-bold text-on-surface mb-2">Hapus Transaksi?</h3>
+              <p className="text-sm text-on-surface-variant mb-4">
+                Yakin ingin menghapus transaksi <span className="font-bold text-on-surface">{transactionToDelete.catatan || transactionToDelete.kategori}</span> sebesar <span className="font-bold text-on-surface">{formatRupiah(Math.abs(transactionToDelete.nominal))}</span>? Data akan hilang permanen.
+              </p>
+
+              {deleteErrorMsg && (
+                <div className="w-full bg-error/10 border border-error/20 rounded-xl p-3 mb-6">
+                  <p className="text-xs font-semibold text-error text-left">{deleteErrorMsg}</p>
+                </div>
+              )}
+              
+              <div className="flex w-full gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => { setTransactionToDelete(null); setDeleteErrorMsg(''); }}
+                  disabled={isDeleting}
+                  className="flex-1 py-3 rounded-xl border border-outline-variant/40 text-sm font-bold text-on-surface-variant hover:bg-surface-container-highest transition-colors disabled:opacity-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteTransaction}
+                  disabled={isDeleting}
+                  className="flex-1 py-3 rounded-xl bg-error text-white text-sm font-bold hover:bg-error/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isDeleting ? (
+                    <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z"/></svg>Menghapus...</>
+                  ) : "Hapus"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
